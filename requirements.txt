@@ -1,0 +1,5 @@
+﻿PyQt5~=5.15.11
+moderngl~=5.11.1
+pyrr~=0.10.3
+numpy~=2.0.2
+openmesh~=1.2.1
