@@ -54,7 +54,6 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
         self.prog = load_program(Path("assets/default.vert"), self.ctx)
 
         self.set_scene()
-        self.set_mesh(openmesh.read_trimesh("dataset/Bed/D00031.obj"))
 
     def set_scene(self):
         # Intialize program defaults
