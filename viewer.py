@@ -76,9 +76,7 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
         self.ctx.enable(moderngl.DEPTH_TEST | moderngl.CULL_FACE)
         
         self.ctx.wireframe = self.wireframe
-        if self.mesh is None:
-            return
-
+        
         self.aspect_ratio = self.width() / max(1.0, self.height())
         proj = Matrix44.perspective_projection(self.fov, self.aspect_ratio, 0.1, 1000.0)
         lookat = Matrix44.look_at(
@@ -87,12 +85,16 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
             (0.0, 1.0, 0.0),
         )
         self.mvp.write((proj * lookat * self.object_rotation.matrix44).astype('f4'))
+        
+        self.color.value = (1.0, 1.0, 1.0, self.grid_alpha_value)
+        self.vao2.render(moderngl.LINES)
+        
+        if self.mesh is None:
+            return
 
         self.color.value = (1.0, 1.0, 1.0, 1.0)
         self.vao.render()
         
-        self.color.value = (1.0, 1.0, 1.0, self.grid_alpha_value)
-        self.vao2.render(moderngl.LINES)
 
     def set_mesh(self, new_mesh: openmesh.TriMesh):
         if new_mesh is None:
