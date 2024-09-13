@@ -10,6 +10,22 @@ from pyrr import Matrix44, Quaternion
 import openmesh
 
 
+def grid(size, steps):
+    # Create grid parameters
+    u = numpy.repeat(numpy.linspace(-size, size, steps), 2)
+    v = numpy.tile([-size, size], steps)
+    w = numpy.zeros(steps * 2)
+    new_grid = numpy.concatenate([numpy.dstack([u, v, w]), numpy.dstack([v, u, w])])
+
+    # Rotate grid
+    rotation_matrix = numpy.array([
+        [0, 0, 1],
+        [1, 0, 0],
+        [0, 0, 0]
+    ])
+    return numpy.dot(new_grid, rotation_matrix)
+
+
 class ModelViewerWidget(QtOpenGL.QGLWidget):
     def __init__(self, parent=None):
         self.parent = parent
@@ -17,15 +33,20 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
 
         self.setMouseTracking(True)
         self.bg_color = (0.1, 0.1, 0.1, 0.1)
-        self.is_wireframe = False
         self.fov = 60.0
         self.camera_zoom = 2.0
         self.wheelEvent = self.zoom
+        self.wireframe = False
 
         self.object_rotation = Quaternion(Matrix44.identity())
         self.prev_x = 0
         self.prev_y = 0
         self.sensitivity = math.pi / 100
+        
+        self.cell = 50
+        self.size = 5
+        self.grid = grid(self.size, self.cell)
+        self.grid_alpha_value = 0.5
 
     def initializeGL(self):
         self.ctx = moderngl.create_context()
@@ -33,22 +54,29 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
         self.prog = load_program(Path("assets/default.vert"), self.ctx)
 
         self.set_scene()
-        self.set_mesh(openmesh.read_trimesh("dataset/Bird/D00089.obj"))
+        self.set_mesh(openmesh.read_trimesh("dataset/Bed/D00031.obj"))
 
     def set_scene(self):
+        # Intialize program defaults
         self.light = self.prog['Light']
         self.color = self.prog['Color']
         self.mvp = self.prog['Mvp']
         self.light.value = (1.0, 1.0, 1.0)
         self.color.value = (1.0, 1.0, 1.0, 1.0)
-
+        
         self.mesh = None
+        
+        # create a vertex buffer for the grid
+        self.vbo = self.ctx.buffer(self.grid.astype('f4'))
+        self.vao2 = self.ctx.simple_vertex_array(self.prog, self.vbo, 'in_position')
 
     def paintGL(self):
+        # Clear screen
         self.ctx.clear(*self.bg_color)
         self.ctx.enable(moderngl.BLEND)
         self.ctx.enable(moderngl.DEPTH_TEST | moderngl.CULL_FACE)
-        self.ctx.wireframe = self.is_wireframe
+        
+        self.ctx.wireframe = self.wireframe
         if self.mesh is None:
             return
 
@@ -59,10 +87,13 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
             (0.0, 0.0, 0.0),
             (0.0, 1.0, 0.0),
         )
-
         self.mvp.write((proj * lookat * self.object_rotation.matrix44).astype('f4'))
 
+        self.color.value = (1.0, 1.0, 1.0, 1.0)
         self.vao.render()
+        
+        self.color.value = (1.0, 1.0, 1.0, self.grid_alpha_value)
+        self.vao2.render(moderngl.LINES)
 
     def set_mesh(self, new_mesh: openmesh.TriMesh):
         if new_mesh is None:
@@ -76,6 +107,7 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
         vao_content = [(self.ctx.buffer(numpy.array(self.mesh.points(), dtype="f4").tobytes()), '3f', 'in_position'),
                        (self.ctx.buffer(numpy.array(self.mesh.vertex_normals(), dtype="f4").tobytes()), '3f', 'in_normal')]
         self.vao = self.ctx.vertex_array(self.prog, vao_content, index_buffer, 4)
+        
 
     def resizeGL(self, width, height):
         width = max(2, width)
@@ -106,3 +138,5 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
             
             self.prev_x = event.x()
             self.prev_y = event.y()
+    def toggle_wireframe(self):
+        self.wireframe = not self.wireframe
