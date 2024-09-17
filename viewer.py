@@ -3,6 +3,7 @@ from PyQt5 import QtOpenGL, QtCore
 import math
 import numpy
 from PyQt5.QtGui import QMouseEvent, QWheelEvent
+from openmesh import FaceHandle
 
 from util import load_program
 from pathlib import Path
@@ -96,7 +97,7 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
         self.vao.render()
         
 
-    def set_mesh(self, new_mesh: openmesh.TriMesh):
+    def set_mesh(self, new_mesh: openmesh.PolyMesh):
         if new_mesh is None:
             self.set_scene()
             return
