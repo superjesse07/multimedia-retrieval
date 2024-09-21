@@ -74,7 +74,7 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
         # Clear screen
         self.ctx.clear(*self.bg_color)
         self.ctx.enable(moderngl.BLEND)
-        self.ctx.enable(moderngl.DEPTH_TEST | moderngl.CULL_FACE)
+        self.ctx.enable(moderngl.DEPTH_TEST)
         
         self.ctx.wireframe = self.wireframe
         
