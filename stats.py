@@ -33,17 +33,10 @@ plt.tight_layout()
 plt.savefig('histograms_faces_vertices.png', dpi=300)
 plt.show()
 
-# SIgnificant outliers based on standard deviation
-threshold_faces = average_faces + 2 * data['faces'].std()
-threshold_vertices = average_vertices + 2 * data['vertices'].std()
+# Outliers based on vertices, below 4000 or above 6000
+outliers_vertices = data[(data['vertices'] < 4000) | (data['vertices'] > 6000)]
 
-outliers_faces = data[data['faces'] > threshold_faces]
-outliers_vertices = data[data['vertices'] > threshold_vertices]
-
-print(f'Outliers based on faces (more than {threshold_faces}):')
-print(outliers_faces)
-
-print(f'Outliers based on vertices (more than {threshold_vertices}):')
+print('Outliers based on vertices (below 4000 or above 6000):')
 print(outliers_vertices)
 
 #shaped should be a few thousand vertices, preferbably around 5000 (4000-6000)
