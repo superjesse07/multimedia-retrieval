@@ -1,7 +1,9 @@
 ﻿import pandas as pd
 import matplotlib.pyplot as plt
+import os
 
-file_path = 'C:\\Users\\Carlijn\\multimedia-retrieval\\dataset.csv'
+# Relative file path
+file_path = os.path.join(os.path.dirname(__file__), 'dataset.csv')
 data = pd.read_csv(file_path, delimiter=';')
 print(data.head())
 
