@@ -8,14 +8,7 @@ def clean_and_refine_mesh(input_path, output_path):
     try:
         # Load the mesh
         mesh = o3d.io.read_triangle_mesh(input_path)
-
-        # Check if mesh is empty or not properly loaded
-        if not mesh.has_triangle_normals():
-            mesh.compute_triangle_normals()
         
-        # Open3D does not have a built-in function to directly remove non-manifold edges,
-        # so you might need to implement that check or use a library that supports it.
-
         # Check vertex and face count
         vertices_count = len(mesh.vertices)
         faces_count = len(mesh.triangles)
