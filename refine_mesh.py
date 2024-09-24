@@ -1,69 +1,48 @@
 import os
-import trimesh
-import pymeshlab
+import open3d as o3d
 from pathlib import Path
+import stats  # Assuming this is a module you've developed for statistical analysis
 
-# Function to refine a mesh using pymeshlab
-def refine_mesh(input_path, output_path):
-    # Load the mesh
-    ms = pymeshlab.MeshSet()
-    print('loading files from: ' + input_path)
-    ms.load_new_mesh(input_path)
-    
-    # Check vertex and face count
-    vertices_count = ms.current_mesh().vertex_number()
-    faces_count = ms.current_mesh().face_number()
-    
-    if vertices_count < 100 or faces_count < 100:
-        # Perform subdivision (refinement)
-        ms.meshing_surface_subdivision_midpoint(iterations=2)  # You can adjust iterations as needed
-        refined_vertices_count = ms.current_mesh().vertex_number()
-        refined_faces_count = ms.current_mesh().face_number()
+# Function to clean and refine a mesh using Open3D
+def clean_and_refine_mesh(input_path, output_path):
+    try:
+        # Load the mesh
+        mesh = o3d.io.read_triangle_mesh(input_path)
+
+        # Check if mesh is empty or not properly loaded
+        if not mesh.has_triangle_normals():
+            mesh.compute_triangle_normals()
         
-        # Check if the refined mesh is not too large
-        if refined_vertices_count <= 50000 and refined_faces_count <= 50000:
-            # Save the refined mesh
-            ms.save_current_mesh(output_path)
-            return refined_vertices_count, refined_faces_count
-        else:
-            print(f"Mesh at {input_path} is too large after refinement: {refined_vertices_count} vertices, {refined_faces_count} faces")
-    else:
-        # Save the original mesh if no refinement is needed
-        ms.save_current_mesh(output_path)
-        return vertices_count, faces_count
+        # Open3D does not have a built-in function to directly remove non-manifold edges,
+        # so you might need to implement that check or use a library that supports it.
 
-import os
-import trimesh
-import pymeshlab
-from pathlib import Path
+        # Check vertex and face count
+        vertices_count = len(mesh.vertices)
+        faces_count = len(mesh.triangles)
 
-# Function to refine a mesh using pymeshlab
-def refine_mesh(input_path, output_path):
-    # Load the mesh
-    ms = pymeshlab.MeshSet()
-    ms.load_new_mesh(input_path)
-    
-    # Check vertex and face count
-    vertices_count = ms.current_mesh().vertex_number()
-    faces_count = ms.current_mesh().face_number()
-    
-    if vertices_count < 100 or faces_count < 100:
-        # Perform subdivision (refinement)
-        ms.meshing_surface_subdivision_midpoint(iterations=2)  # You can adjust iterations as needed
-        refined_vertices_count = ms.current_mesh().vertex_number()
-        refined_faces_count = ms.current_mesh().face_number()
-        
-        # Check if the refined mesh is not too large
-        if refined_vertices_count <= 50000 and refined_faces_count <= 50000:
-            # Save the refined mesh
-            ms.save_current_mesh(output_path)
-            return refined_vertices_count, refined_faces_count
+        # Perform refinement if mesh is poorly sampled
+        if vertices_count < 100 or faces_count < 100:
+            # Refine the mesh using midpoint subdivision
+            mesh = mesh.subdivide_midpoint(number_of_iterations=2)  # Adjust iterations as needed
+            refined_vertices_count = len(mesh.vertices)
+            refined_faces_count = len(mesh.triangles)
+            
+            # Check if the refined mesh is not too large
+            if refined_vertices_count <= 50000 and refined_faces_count <= 50000:
+                # Save the refined mesh
+                o3d.io.write_triangle_mesh(output_path, mesh)
+                return refined_vertices_count, refined_faces_count
+            else:
+                print(f"Mesh at {input_path} is too large after refinement: {refined_vertices_count} vertices, {refined_faces_count} faces")
+                return vertices_count, faces_count
         else:
-            print(f"Mesh at {input_path} is too large after refinement: {refined_vertices_count} vertices, {refined_faces_count} faces")
-    else:
-        # Save the original mesh if no refinement is needed
-        ms.save_current_mesh(output_path)
-        return vertices_count, faces_count
+            # Save the original mesh if no refinement is needed
+            o3d.io.write_triangle_mesh(output_path, mesh)
+            return vertices_count, faces_count
+            
+    except Exception as e:
+        print(f"Error processing {input_path}: {e}")
+        return None, None
 
 # Function to process all .obj files in the given directory and its subdirectories
 def process_directory(input_dir, output_dir):
@@ -84,13 +63,16 @@ def process_directory(input_dir, output_dir):
                 output_subdir = os.path.dirname(output_path)
                 Path(output_subdir).mkdir(parents=True, exist_ok=True)
                 
-                # Refine the mesh and save the result
-                vertices, faces = refine_mesh(input_path, output_path)
-                print(f"Processed {relative_path}: {vertices} vertices, {faces} faces")
+                # Clean and refine the mesh and save the result
+                vertices, faces = clean_and_refine_mesh(input_path, output_path)
+                if vertices is not None and faces is not None:
+                    print(f"Processed {relative_path}: {vertices} vertices, {faces} faces")
+                else:
+                    print(f"Skipping {relative_path} due to processing error")
 
 # Directory containing your dataset
-input_dir = 'D:\multimedia-retrieval\dataset'
-output_dir = 'D:\multimedia-retrieval\\refined'
+input_dir = r'D:\multimedia-retrieval\dataset'
+output_dir = r'D:\multimedia-retrieval\refined_dataset'
 
 # Process the dataset directory
 process_directory(input_dir, output_dir)
