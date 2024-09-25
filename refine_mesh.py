@@ -75,8 +75,8 @@ def process_directory(input_dir, output_dir):
                     print(f"Skipping {relative_path} due to processing error")
 
 # Directory containing your dataset
-input_dir = r'D:\multimedia-retrieval\dataset'
-output_dir = r'D:\multimedia-retrieval\refined_dataset'
+input_dir = os.path.join(os.path.dirname(__file__), 'dataset')
+output_dir = os.path.join(os.path.dirname(__file__), 'refined_dataset')
 
 # Process the dataset directory
 process_directory(input_dir, output_dir)
