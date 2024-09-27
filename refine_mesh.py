@@ -3,9 +3,8 @@ import open3d as o3d
 import pandas as pd
 from pathlib import Path
 import csv
-import numpy as np
 
-# Function to refine a mesh using Open3D
+# Function to refine the meshes with the use Open3D
 def refine_meshes(input_path, output_path):
     try:
         # Load the mesh
@@ -15,37 +14,38 @@ def refine_meshes(input_path, output_path):
         vertices_count = len(mesh.vertices)
         faces_count = len(mesh.triangles)
         
-        # If vertices count is not within the desired range, refine the mesh
+        # Checks if there are outliers
         if vertices_count < 4000 or vertices_count > 6000:
             print(f"Processing {input_path}...")
 
-            # Dynamic adjustment based on the current vertices count
-            if vertices_count < 300:
-                # Go up to a high number of vertices, then downsample
+            # Perform refinement if mesh is poorly sampled
+            if vertices_count < 100 or faces_count < 100:
+                # Refine the mesh using midpoint subdivision
                 mesh = mesh.subdivide_midpoint(number_of_iterations=2)
-                mesh = mesh.simplify_quadric_decimation(int(len(mesh.vertices) * 2))  # Double the vertices for a start
-            elif vertices_count < 4000:
-                mesh = mesh.subdivide_midpoint(number_of_iterations=1)
-            elif vertices_count > 6000:
-                # Downsample for high vertex count
-                mesh = mesh.simplify_quadric_decimation(int(len(mesh.vertices) * 0.5))  # Reduce to 50%
-
-            # Final check for vertex count
-            refined_vertices_count = len(mesh.vertices)
-            refined_faces_count = len(mesh.triangles)
-
-            # Ensure the refined mesh is within limits
-            if 4000 <= refined_vertices_count <= 6000:
-                # Save the refined mesh
-                o3d.io.write_triangle_mesh(output_path, mesh)
-                return {
-                    "vertices": refined_vertices_count,
-                    "faces": refined_faces_count,
-                    "min_bound": mesh.get_min_bound(),
-                    "max_bound": mesh.get_max_bound()
-                }
+                refined_vertices_count = len(mesh.vertices)
+                refined_faces_count = len(mesh.triangles)
+                
+                # Check if the refined mesh is not too large
+                if refined_vertices_count <= 50000 and refined_faces_count <= 50000:
+                    # Save the refined mesh
+                    o3d.io.write_triangle_mesh(output_path, mesh)
+                    return {
+                        "vertices": refined_vertices_count,
+                        "faces": refined_faces_count,
+                        "min_bound": mesh.get_min_bound(),
+                        "max_bound": mesh.get_max_bound()
+                    }
+                else:
+                    print(f"Mesh at {input_path} is too large after refinement: {refined_vertices_count} vertices, {refined_faces_count} faces")
+                    return {
+                        "vertices": vertices_count,
+                        "faces": faces_count,
+                        "min_bound": mesh.get_min_bound(),
+                        "max_bound": mesh.get_max_bound()
+                    }
             else:
-                print(f"Refined mesh at {input_path} is out of bounds: {refined_vertices_count} vertices.")
+                # Save the original mesh if no refinement is needed
+                o3d.io.write_triangle_mesh(output_path, mesh)
                 return {
                     "vertices": vertices_count,
                     "faces": faces_count,
@@ -62,6 +62,7 @@ def refine_meshes(input_path, output_path):
 
 # Function to process all .obj files in the given directory and its subdirectories
 def process_directory(input_dir, output_dir, output_csv):
+    # Ensure output directory exists
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     
     results = []
@@ -101,12 +102,12 @@ def process_directory(input_dir, output_dir, output_csv):
                 result['class'],
                 result['faces'],
                 result['vertices'],
-                str(result['min_bound'][0]).replace('.', ','),
-                str(result['min_bound'][1]).replace('.', ','),
-                str(result['min_bound'][2]).replace('.', ','),
-                str(result['max_bound'][0]).replace('.', ','),
-                str(result['max_bound'][1]).replace('.', ','),
-                str(result['max_bound'][2]).replace('.', ',')
+                str(result['min_bound'][0]).replace('.',','),
+                str(result['min_bound'][1]).replace('.',','),
+                str(result['min_bound'][2]).replace('.',','),
+                str(result['max_bound'][0]).replace('.',','),
+                str(result['max_bound'][1]).replace('.',','),
+                str(result['max_bound'][2]).replace('.',',')
             ])
     
     print(f"Results have been written to {output_csv}")
