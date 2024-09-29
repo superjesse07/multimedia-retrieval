@@ -1,11 +1,10 @@
 import os
 import open3d as o3d
-import pandas as pd
 from pathlib import Path
 import csv
 
-# Function to refine the meshes with the use Open3D
-def refine_meshes(input_path, output_path):
+# Function to refine the meshes using Open3D
+def refine_meshes(input_path, output_path, min_vertex_count=2000, max_vertex_count=50000, target_vertex_count=4000, max_iterations=5):
     try:
         # Load the mesh
         mesh = o3d.io.read_triangle_mesh(input_path)
@@ -14,46 +13,33 @@ def refine_meshes(input_path, output_path):
         vertices_count = len(mesh.vertices)
         faces_count = len(mesh.triangles)
         
-        # Checks if there are outliers
-        if vertices_count < 4000 or vertices_count > 6000:
-            print(f"Processing {input_path}...")
-
-            # Perform refinement if mesh is poorly sampled
-            if vertices_count < 100 or faces_count < 100:
+        iterations = 0
+        while (vertices_count < min_vertex_count or vertices_count > max_vertex_count or 
+               faces_count < min_vertex_count or faces_count > max_vertex_count) and iterations < max_iterations:
+            iterations += 1
+            if vertices_count < min_vertex_count or faces_count < min_vertex_count:
                 # Refine the mesh using midpoint subdivision
-                mesh = mesh.subdivide_midpoint(number_of_iterations=2)
-                refined_vertices_count = len(mesh.vertices)
-                refined_faces_count = len(mesh.triangles)
-                
-                # Check if the refined mesh is not too large
-                if refined_vertices_count <= 50000 and refined_faces_count <= 50000:
-                    # Save the refined mesh
-                    o3d.io.write_triangle_mesh(output_path, mesh)
-                    return {
-                        "vertices": refined_vertices_count,
-                        "faces": refined_faces_count,
-                        "min_bound": mesh.get_min_bound(),
-                        "max_bound": mesh.get_max_bound()
-                    }
-                else:
-                    print(f"Mesh at {input_path} is too large after refinement: {refined_vertices_count} vertices, {refined_faces_count} faces")
-                    return {
-                        "vertices": vertices_count,
-                        "faces": faces_count,
-                        "min_bound": mesh.get_min_bound(),
-                        "max_bound": mesh.get_max_bound()
-                    }
-            else:
-                # Save the original mesh if no refinement is needed
-                o3d.io.write_triangle_mesh(output_path, mesh)
-                return {
-                    "vertices": vertices_count,
-                    "faces": faces_count,
-                    "min_bound": mesh.get_min_bound(),
-                    "max_bound": mesh.get_max_bound()
-                }
+                mesh = mesh.subdivide_midpoint(number_of_iterations=1)
+            elif vertices_count > max_vertex_count or faces_count > max_vertex_count:
+                # Simplify the mesh using quadric decimation
+                mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=target_vertex_count)
+            
+            vertices_count = len(mesh.vertices)
+            faces_count = len(mesh.triangles)
+            print(f"Iteration {iterations}: {vertices_count} vertices, {faces_count} faces")
+
+        # Check if the final mesh is within acceptable limits
+        if min_vertex_count <= vertices_count <= max_vertex_count and min_vertex_count <= faces_count <= max_vertex_count:
+            # Save the refined mesh
+            o3d.io.write_triangle_mesh(output_path, mesh)
+            return {
+                "vertices": vertices_count,
+                "faces": faces_count,
+                "min_bound": mesh.get_min_bound(),
+                "max_bound": mesh.get_max_bound()
+            }
         else:
-            print(f"Skipping {input_path}: Vertices count is between 4000 and 6000.")
+            print(f"Mesh at {input_path} could not be refined to acceptable limits: {vertices_count} vertices, {faces_count} faces")
             return None
         
     except Exception as e:
@@ -89,7 +75,7 @@ def process_directory(input_dir, output_dir, output_csv):
                     results.append(result)
                     print(f"Processed {relative_path}: {result['vertices']} vertices, {result['faces']} faces")
                 else:
-                    print(f"Skipping {relative_path} due to processing error")
+                    print(f"Skipping {relative_path} due to processing error or out of range vertices/faces")
     
     # Write results to CSV
     header = ['name', 'class', 'faces', 'vertices', 'min_x', 'min_y', 'min_z', 'max_x', 'max_y', 'max_z']
