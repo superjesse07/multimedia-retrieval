@@ -9,6 +9,8 @@ from pathlib import Path
 from openmesh import PolyMesh
 import os
 from contextlib import contextmanager
+
+from util import get_barycenter
 from viewer import ModelViewerWidget
 import csv
 
@@ -88,6 +90,8 @@ class ModelViewerApplication(QtWidgets.QWidget):
                         mesh_type = "Mixed"
                 else:
                     mesh_type = "Quad"
+                    
+                print(get_barycenter(mesh))
 
                 data.append([
                     mesh_path.name,
