@@ -112,3 +112,31 @@ output_csv = os.path.join(os.path.dirname(__file__), 'refined_dataset_statistics
 
 process_directory(input_dir, output_dir, output_csv)
 print("Refinement process completed.")
+
+
+
+
+#To display the histogram after refinement
+import pandas as pd
+import matplotlib.pyplot as plt
+
+csv_file_path = 'refined_dataset_statistics.csv'  
+data = pd.read_csv(csv_file_path)
+
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+
+ax1.hist(data['vertices'], bins=30, color='skyblue', edgecolor='black')
+ax1.set_title('Vertex Count Distribution')
+ax1.set_xlabel('Vertex Count')
+ax1.set_ylabel('Frequency')
+
+ax2.hist(data['faces'], bins=30, color='salmon', edgecolor='black')
+ax2.set_title('Face Count Distribution')
+ax2.set_xlabel('Face Count')
+ax2.set_ylabel('Frequency')
+
+plt.tight_layout()
+
+plt.show()
+
+import os
