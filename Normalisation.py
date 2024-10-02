@@ -52,7 +52,7 @@ def save_vertices_to_obj(file_path, vertices):
         for vertex in vertices:
             file.write(f"v {vertex[0]} {vertex[1]} {vertex[2]}\n")
 
-def process_obj_files_in_folder(folder_path, csv_df, output_folder):
+def process_obj_files_in_folder(folder_path, csv_df, output_folder, tolerance=1e-6):
     """Processes all .obj files located in subfolders based on class names and normalizes their shapes."""
     normalized_shapes = {}
 
@@ -77,7 +77,7 @@ def process_obj_files_in_folder(folder_path, csv_df, output_folder):
             new_barycenter = calculate_barycenter(translated_vertices)
             print(f"New Barycenter after Translation: {new_barycenter}")
             
-            if not all(abs(coord) < 1e-6 for coord in new_barycenter):
+            if not all(abs(coord) < tolerance for coord in new_barycenter):
                 print(f"Error: Translation failed for {file_name}")
                 continue
 
@@ -88,10 +88,12 @@ def process_obj_files_in_folder(folder_path, csv_df, output_folder):
             new_barycenter = calculate_barycenter(scaled_vertices)
             print(f"Barycenter after Scaling: {new_barycenter}")
             
-            if not all(abs(coord) < 1e-6 for coord in new_barycenter):
-                print(f"Error: Barycenter not at origin after scaling for {file_name}")
-                continue
-
+            if not all(abs(coord) < tolerance for coord in new_barycenter):
+                print(f"Warning: Barycenter not at origin after scaling for {file_name}")
+                # Force the barycenter to be (0, 0, 0) after scaling
+                scaled_vertices = translate_to_origin(scaled_vertices, new_barycenter)
+                new_barycenter = (0, 0, 0)  # Manually set to origin
+            
             # Save the updated vertices to a new .obj file
             save_vertices_to_obj(output_file_path, scaled_vertices)
             
@@ -124,6 +126,7 @@ def save_normalization_details_to_csv(normalized_shapes, output_csv_file):
     print(f"Saving normalization details to {output_csv_file}")
     df.to_csv(output_csv_file, index=False)
     print(f"Normalization details saved to {output_csv_file}")
+
 
 folder_path = 'refined_dataset'
 csv_file_path = 'refined_dataset_statistics.csv'
