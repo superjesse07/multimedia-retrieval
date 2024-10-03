@@ -91,7 +91,7 @@ class ModelViewerApplication(QtWidgets.QWidget):
                 else:
                     mesh_type = "Quad"
                     
-                print(get_barycenter(mesh))
+                #print(get_barycenter(mesh))
 
                 data.append([
                     mesh_path.name,

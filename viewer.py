@@ -58,6 +58,19 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
 
         self.set_scene()
 
+        # Define the axis lines for X (red), Y (green), and Z (blue)
+        self.axis_vertices = numpy.array([
+            # X axis (red)
+            [0.0, 0.0, 0.0], [1.0, 0.0, 0.0],  # X-axis positive direction
+            [0.0, 0.0, 0.0], [0.0, 1.0, 0.0],  # Y-axis positive direction
+            [0.0, 0.0, 0.0], [0.0, 0.0, 1.0],  # Z-axis positive direction
+        ], dtype='f4')
+
+        self.axis_vbo = self.ctx.buffer(self.axis_vertices.tobytes())
+        self.axis_vao = self.ctx.simple_vertex_array(self.prog, self.axis_vbo, 'in_position')
+
+
+
     def set_scene(self):
         # Intialize program defaults
         self.light = self.prog['Light']
@@ -72,14 +85,21 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
         self.vbo = self.ctx.buffer(self.grid.astype('f4'))
         self.vao2 = self.ctx.simple_vertex_array(self.prog, self.vbo, 'in_position')
 
+
+
     def paintGL(self):
         # Clear screen
         self.ctx.clear(*self.bg_color)
         self.ctx.enable(moderngl.BLEND)
         self.ctx.enable(moderngl.DEPTH_TEST)
 
-        self.ctx.wireframe = self.wireframe
+        # Enable or disable wireframe mode based on the state
+        if self.wireframe:
+            self.ctx.wireframe = True
+        else:
+            self.ctx.wireframe = False
 
+        # Setup camera projection and view matrix
         self.aspect_ratio = self.width() / max(1.0, self.height())
         proj = Matrix44.perspective_projection(self.fov, self.aspect_ratio, 0.1, 1000.0)
         lookat = Matrix44.look_at(
@@ -89,9 +109,26 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
         )
         self.mvp.write((proj * lookat * self.object_rotation.matrix44).astype('f4'))
 
+        # Render grid with default line width
+        self.ctx.line_width = 1.0  # Set to default thickness for grid and other objects
         self.color.value = (1.0, 1.0, 1.0, self.grid_alpha_value)
         self.vao2.render(moderngl.LINES)
 
+        # Render axes with thicker lines
+        self.ctx.line_width = 9.0  # Thicker line width for axes
+        self.color.value = (1.0, 0.0, 0.0, 1.0)  # Red for X-axis
+        self.axis_vao.render(moderngl.LINES, vertices=2, first=0)
+
+        self.color.value = (0.0, 1.0, 0.0, 1.0)  # Green for Y-axis
+        self.axis_vao.render(moderngl.LINES, vertices=2, first=2)
+
+        self.color.value = (0.0, 0.0, 1.0, 1.0)  # Blue for Z-axis
+        self.axis_vao.render(moderngl.LINES, vertices=2, first=4)
+
+        # Reset to default line width for the rest of the scene
+        self.ctx.line_width = 1.0  # Reset line width back to normal
+
+        # Render the wireframe or mesh if available
         if self.mesh is None:
             return
 
@@ -100,6 +137,13 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
 
         self.color.value = (1.0, 1.0, 1.0, 1.0)
         self.vao.render()
+
+
+
+
+    
+
+
 
     def set_mesh(self, new_mesh: openmesh.PolyMesh):
         if new_mesh is None:
