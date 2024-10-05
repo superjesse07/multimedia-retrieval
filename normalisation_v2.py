@@ -1,19 +1,17 @@
 ﻿import os
 import numpy as np
 
-# Function to load vertices from the .obj file
 def load_obj(filepath):
     vertices = []
     obj_lines = []
     with open(filepath, 'r') as file:
         for line in file:
             obj_lines.append(line)
-            if line.startswith('v '):  # 'v' defines a vertex
+            if line.startswith('v '): 
                 parts = line.split()
                 vertices.append([float(parts[1]), float(parts[2]), float(parts[3])])
-    return np.array(vertices).T, obj_lines  # Transpose to get a (3, n_points) matrix, return lines as well
+    return np.array(vertices).T, obj_lines  
 
-# Function to save the transformed vertices back to .obj format
 def save_obj(filepath, vertices, original_obj_lines):
     with open(filepath, 'w') as file:
         vertex_idx = 0
@@ -25,67 +23,89 @@ def save_obj(filepath, vertices, original_obj_lines):
             else:
                 file.write(line)
 
+def correct_rotation(eigenvectors):
+    x_axis = np.array([1, 0, 0])
+    y_axis = np.array([0, 1, 0])
+    z_axis = np.array([0, 0, 1])
+
+    alignment_x = np.abs(np.dot(eigenvectors[:, 0], x_axis))
+    alignment_y = np.abs(np.dot(eigenvectors[:, 1], y_axis))
+    alignment_z = np.abs(np.dot(eigenvectors[:, 2], z_axis))
+
+    print(f"Alignment with X-axis: {alignment_x}")
+    print(f"Alignment with Y-axis: {alignment_y}")
+    print(f"Alignment with Z-axis: {alignment_z}")
+
+    if alignment_x < alignment_y or alignment_x < alignment_z:
+        if alignment_y > alignment_z:
+            eigenvectors[:, [0, 1]] = eigenvectors[:, [1, 0]]  
+        else:
+            eigenvectors[:, [0, 2]] = eigenvectors[:, [2, 0]]  
+    if alignment_y < alignment_z:
+        eigenvectors[:, [1, 2]] = eigenvectors[:, [2, 1]] 
+
+    for i in range(3):
+        if np.dot(eigenvectors[:, i], [1 if i == j else 0 for j in range(3)]) < 0:
+            eigenvectors[:, i] *= -1 
+
+    return eigenvectors
+
 def normalize_shape(vertices, filepath):
     print(f"Processing: {filepath}")
-    
-    # Step 1: Center the points (Translation Normalization)
+
     centroid = np.mean(vertices, axis=1, keepdims=True)
     vertices_centered = vertices - centroid
+    print(f"Centroid: {centroid.ravel()}")
 
-    # Step 2: Compute the covariance matrix and perform PCA
     cov_matrix = np.cov(vertices_centered)
     eigenvalues, eigenvectors = np.linalg.eig(cov_matrix)
+    
+    print(f"Covariance Matrix:\n{cov_matrix}")
+    print(f"Eigenvalues: {eigenvalues}")
+    print(f"Eigenvectors (columns):\n{eigenvectors}")
 
-    # Check if any eigenvalue is close to zero (potential problem)
-    eigenvalue_threshold = 1e-6
-    if np.any(eigenvalues < eigenvalue_threshold):
-        print("Warning: One or more eigenvalues are very small, indicating a flat or degenerate shape.")
+    eigenvectors = correct_rotation(eigenvectors)
 
-    # Align the shape based on PCA (eigenvectors)
     aligned_vertices = np.dot(vertices_centered.T, eigenvectors).T
+    print(f"Aligned vertices (first 5 rows):\n{aligned_vertices[:, :5]}")
 
-    # Step 3: Scaling the shape into unit volume (no flipping)
     bounding_box = np.ptp(aligned_vertices, axis=1)
+    print(f"Bounding Box (extent of aligned shape along each axis): {bounding_box}")
     max_dimension = np.max(bounding_box)
     scale_factor = 1.0 / max_dimension
     scaled_vertices = aligned_vertices * scale_factor
 
+    print(f"Scale factor: {scale_factor}")
+    print(f"Scaled vertices (first 5 rows):\n{scaled_vertices[:, :5]}")
+
     return scaled_vertices
 
-# Function to process all .obj files and apply normalization
 def process_obj_files(input_dir, output_dir):
-    # Ensure output directory exists
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
-    
-    # Walk through the directory structure
+
     for root, dirs, files in os.walk(input_dir):
-        # Create corresponding directory structure in the output folder
+     
         relative_path = os.path.relpath(root, input_dir)
         output_subdir = os.path.join(output_dir, relative_path)
         if not os.path.exists(output_subdir):
             os.makedirs(output_subdir)
 
-        # Process each .obj file in the current directory
+        
         for file in files:
             if file.endswith('.obj'):
                 input_filepath = os.path.join(root, file)
                 output_filepath = os.path.join(output_subdir, file)
 
-                # Load vertices and obj lines
                 vertices, obj_lines = load_obj(input_filepath)
 
-                # Apply normalization (alignment and scaling, no flipping)
                 normalized_vertices = normalize_shape(vertices, input_filepath)
 
-                # Save the normalized .obj file
                 save_obj(output_filepath, normalized_vertices, obj_lines)
 
-# Define input and output directories
 input_directory = 'normalised_dataset'
 output_directory = 'normalised_v2_dataset'
 
-# Process the dataset
 process_obj_files(input_directory, output_directory)
 
 print("Normalization process completed.")
