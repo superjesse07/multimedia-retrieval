@@ -4,59 +4,49 @@ from pathlib import Path
 import csv
 
 def clean_mesh(mesh):
-    print(f"Cleaning mesh with {len(mesh.vertices)} vertices and {len(mesh.triangles)} faces.")
     mesh.remove_duplicated_vertices()
     mesh.remove_degenerate_triangles()
     mesh.remove_non_manifold_edges()
-    print(f"Post-cleaning: {len(mesh.vertices)} vertices, {len(mesh.triangles)} faces.")
     return mesh
 
-def aggressive_preprocess(mesh, target_face_count=50000, reduction_factor=0.5):
-    print(f"Pre-processing large mesh with {len(mesh.vertices)} vertices and {len(mesh.triangles)} faces.")
+def aggressive_preprocess(mesh, target_count=5000, reduction_factor=0.5):
     mesh = clean_mesh(mesh)
-    while len(mesh.triangles) > target_face_count * 1.5:
-        new_triangle_count = int(len(mesh.triangles) * reduction_factor)
-        mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=new_triangle_count)
-        print(f"Decimation step: {len(mesh.vertices)} vertices, {len(mesh.triangles)} faces.")
-    mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=target_face_count)
-    print(f"Post pre-processing: {len(mesh.vertices)} vertices, {len(mesh.triangles)} faces.")
+    while len(mesh.vertices) > target_count * 1.5:
+        new_vertex_count = int(len(mesh.vertices) * reduction_factor)
+        mesh = mesh.simplify_vertex_clustering(voxel_size=(new_vertex_count / len(mesh.vertices)))
+    mesh = mesh.simplify_vertex_clustering(voxel_size=(target_count / len(mesh.vertices)))
     return mesh
 
-def refine_meshes(input_path, output_path, min_vertex_count=3000, max_vertex_count=50000, 
-                  high_vertex_threshold=50000, heavy_decimation_threshold=50000, max_iterations=20):
+def refine_meshes(input_path, output_path, target_count=5000, 
+                  heavy_decimation_threshold=50000, max_iterations=20, tolerance=0.1):
     try:
         mesh = o3d.io.read_triangle_mesh(input_path)
         vertices_count = len(mesh.vertices)
         faces_count = len(mesh.triangles)
         if faces_count > heavy_decimation_threshold or vertices_count > heavy_decimation_threshold:
-            print(f"Mesh at {input_path} has {vertices_count} vertices and {faces_count} faces, performing aggressive pre-processing...")
-            mesh = aggressive_preprocess(mesh, target_face_count=max_vertex_count)
+            mesh = aggressive_preprocess(mesh, target_count=target_count)
             vertices_count = len(mesh.vertices)
             faces_count = len(mesh.triangles)
         
         iterations = 0
-        while (vertices_count < min_vertex_count or vertices_count > max_vertex_count or faces_count > max_vertex_count) and iterations < max_iterations:
+        previous_vertices_count = vertices_count
+        while abs(vertices_count - target_count) > target_count * tolerance and iterations < max_iterations:
             iterations += 1
-            if vertices_count < min_vertex_count:
-                print(f"Refining mesh {input_path} - Iteration {iterations}")
+            if vertices_count < target_count:
                 mesh = mesh.subdivide_midpoint(number_of_iterations=1)
-            elif vertices_count > max_vertex_count or faces_count > max_vertex_count:
-                print(f"Simplifying mesh {input_path} - Iteration {iterations}")
-                mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=(max_vertex_count + min_vertex_count) // 2)
+            elif vertices_count > target_count:
+                current_reduction_factor = target_count / vertices_count
+                mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=int(len(mesh.triangles) * current_reduction_factor))
+            mesh = clean_mesh(mesh)
             vertices_count = len(mesh.vertices)
             faces_count = len(mesh.triangles)
-            print(f"Iteration {iterations}: {vertices_count} vertices, {faces_count} faces")
-            if faces_count > heavy_decimation_threshold:
-                print(f"Mesh at {input_path} has become too complex during refinement. Performing aggressive simplification...")
-                mesh = aggressive_preprocess(mesh, target_face_count=max_vertex_count)
-                vertices_count = len(mesh.vertices)
-                faces_count = len(mesh.triangles)
-                print(f"After aggressive simplification: {vertices_count} vertices, {faces_count} faces")
-            if iterations >= max_iterations:
-                print(f"Stopping after {max_iterations} iterations. Mesh at {input_path} still has too many faces: {faces_count}")
+            
+            if abs(vertices_count - previous_vertices_count) < 100:
                 break
+            
+            previous_vertices_count = vertices_count
 
-        if min_vertex_count <= vertices_count <= max_vertex_count and faces_count <= max_vertex_count:
+        if abs(vertices_count - target_count) <= target_count * tolerance:
             o3d.io.write_triangle_mesh(output_path, mesh)
             print(f"Processed {Path(input_path).name}: {vertices_count} vertices, {faces_count} faces")
             return {
@@ -66,7 +56,6 @@ def refine_meshes(input_path, output_path, min_vertex_count=3000, max_vertex_cou
                 "max_bound": mesh.get_max_bound()
             }
         else:
-            print(f"Mesh at {input_path} could not be refined to acceptable limits: {vertices_count} vertices, {faces_count} faces")
             return None
     except Exception as e:
         print(f"Error processing {input_path}: {e}")
@@ -85,14 +74,11 @@ def process_directory(input_dir, output_dir, output_csv):
                 if file.endswith(".obj"):
                     input_path = os.path.join(root, file)
                     
-                    # Extract class name from directory structure
                     class_name = Path(root).stem
                     class_output_dir = os.path.join(output_dir, class_name)
                     Path(class_output_dir).mkdir(parents=True, exist_ok=True)
                     
                     output_path = os.path.join(class_output_dir, file)
-                    
-                    print(f"Processing {file} in class {class_name}")
                     
                     result = refine_meshes(input_path, output_path)
                     
@@ -113,10 +99,7 @@ output_csv = os.path.join(os.path.dirname(__file__), 'refined_dataset_statistics
 process_directory(input_dir, output_dir, output_csv)
 print("Refinement process completed.")
 
-
-
-
-#To display the histogram after refinement
+# To display the histogram after refinement
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -138,5 +121,3 @@ ax2.set_ylabel('Frequency')
 plt.tight_layout()
 
 plt.show()
-
-import os
