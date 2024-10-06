@@ -16,6 +16,8 @@ def check_pca_alignment(vertices):
     cov_matrix = np.cov(vertices)
     
     eigenvalues, eigenvectors = np.linalg.eig(cov_matrix)
+    eigenvectors[:,[0,1,2]] = eigenvectors[:,eigenvalues.argsort()]
+
     
     x_axis = np.array([1, 0, 0])
     y_axis = np.array([0, 1, 0])

@@ -23,26 +23,8 @@ def save_obj(filepath, vertices, original_obj_lines):
             else:
                 file.write(line)
 
-def correct_rotation(eigenvectors):
-    x_axis = np.array([1, 0, 0])
-    y_axis = np.array([0, 1, 0])
-    z_axis = np.array([0, 0, 1])
-
-    alignment_x = np.abs(np.dot(eigenvectors[:, 0], x_axis))
-    alignment_y = np.abs(np.dot(eigenvectors[:, 1], y_axis))
-    alignment_z = np.abs(np.dot(eigenvectors[:, 2], z_axis))
-
-    print(f"Alignment with X-axis: {alignment_x}")
-    print(f"Alignment with Y-axis: {alignment_y}")
-    print(f"Alignment with Z-axis: {alignment_z}")
-
-    if alignment_x < alignment_y or alignment_x < alignment_z:
-        if alignment_y > alignment_z:
-            eigenvectors[:, [0, 1]] = eigenvectors[:, [1, 0]]  
-        else:
-            eigenvectors[:, [0, 2]] = eigenvectors[:, [2, 0]]  
-    if alignment_y < alignment_z:
-        eigenvectors[:, [1, 2]] = eigenvectors[:, [2, 1]] 
+def correct_rotation(eigenvalues,eigenvectors):
+    eigenvectors[:,[0,1,2]] = eigenvectors[:,eigenvalues.argsort()]
 
     for i in range(3):
         if np.dot(eigenvectors[:, i], [1 if i == j else 0 for j in range(3)]) < 0:
@@ -64,7 +46,7 @@ def normalize_shape(vertices, filepath):
     print(f"Eigenvalues: {eigenvalues}")
     print(f"Eigenvectors (columns):\n{eigenvectors}")
 
-    eigenvectors = correct_rotation(eigenvectors)
+    eigenvectors = correct_rotation(eigenvalues, eigenvectors)
 
     aligned_vertices = np.dot(vertices_centered.T, eigenvectors).T
     print(f"Aligned vertices (first 5 rows):\n{aligned_vertices[:, :5]}")
