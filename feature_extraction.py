@@ -98,7 +98,7 @@ def compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices):
 
 def compute_histogram(values, bins=10, range_min=0, range_max=1):
     histogram, _ = np.histogram(values, bins=bins, range=(range_min, range_max))
-    return histogram / np.sum(histogram)  =
+    return histogram / np.sum(histogram)
 
 def extract_shape_descriptors(mesh, num_samples=1000, bins=10):
     vertices = np.asarray(mesh.vertices)
