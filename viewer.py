@@ -38,6 +38,7 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
         self.wireframe = False
         self.flat_shading = False 
         self.shaded_mode = True  
+        self.mesh = None
 
         self.object_rotation = Quaternion(Matrix44.identity())
         self.prev_x = 0
@@ -62,7 +63,6 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
     def initializeGL(self):
         self.ctx = moderngl.create_context()
 
-      
         self.prog = load_program(Path("assets/default.vert"), self.ctx)
 
         self.set_scene()
@@ -81,8 +81,9 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
         self.light = self.prog['Light']
         self.color = self.prog['Color']
         self.mvp = self.prog['Mvp']
+        self.flat = self.prog['ShadeFlat']
         self.light.value = (1.0, 1.0, 1.0)
-        self.color.value = (0.0, 0.0, 0.0, 1.0) 
+        self.color.value = (0.0, 0.0, 0.0, 1.0)
 
         self.mesh = None
         self.vbo = self.ctx.buffer(self.grid.astype('f4'))
@@ -121,28 +122,22 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
         translation = Matrix44.from_translation(self.barycenter)
         self.mvp.write((proj * lookat * self.object_rotation.matrix44 * translation).astype('f4'))
 
-        if self.flat_shading:
-            self.mesh.update_face_normals()
-            normals = np.repeat(self.mesh.face_normals(), 3, axis=0)
-        else:
-            self.mesh.update_normals()
-            normals = self.mesh.vertex_normals()
-
         vao_content = [
             (self.ctx.buffer(np.array(self.mesh.points(), dtype="f4").tobytes()), '3f', 'in_position'),
-            (self.ctx.buffer(np.array(normals, dtype="f4").tobytes()), '3f', 'in_normal'),
+            (self.ctx.buffer(np.array(self.mesh.vertex_normals(), dtype="f4").tobytes()), '3f', 'in_normal'),
         ]
 
         index_buffer = self.ctx.buffer(np.array(self.mesh.face_vertex_indices(), dtype="u4").tobytes())
         self.vao = self.ctx.vertex_array(self.prog, vao_content, index_buffer)
 
         if self.shaded_mode:
-            self.color.value = (0.0, 0.0, 0.0, 1.0)
+            self.flat.value = int(self.flat_shading) 
+            self.color.value = (1.0, 1.0, 1.0, 1.0)
             self.vao.render()
 
         if self.wireframe:
             self.ctx.wireframe = True
-            self.color.value = (1.0, 1.0, 1.0, 1.0)
+            self.color.value = (0.0, 0.0, 0.0, 1.0)
             self.vao.render()
             self.ctx.wireframe = False
 
