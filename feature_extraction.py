@@ -17,7 +17,8 @@ def extract_features(mesh: o3d.geometry.TriangleMesh):
     print(f"Convexity: {convexity}")
     diameter = get_diameter(mesh)
     print(f"Diameter: {diameter}")
-    get_eccentricity(mesh)
+    eccentricity = get_eccentricity(mesh)
+    print(f"Eccentricity: {eccentricity}")
 
     #A1, D1 D2 D3 D4
     num_samples = 1000
@@ -56,7 +57,8 @@ def get_diameter(mesh: o3d.geometry.TriangleMesh):
 def get_eccentricity(mesh: o3d.geometry.TriangleMesh):
     cov = np.cov(np.asarray(mesh.vertices).T)
     eigenvalues, eigenvectors = np.linalg.eig(cov)
-    print(f"Eccentricity Eigenvalues: {eigenvalues}")
+    sorted_eigenvalues = np.abs(np.sort(eigenvalues))
+    return sorted_eigenvalues[0] / sorted_eigenvalues[2]
 
 # barycenter (needs recplacement still)
 def compute_barycenter(vertices):
