@@ -72,6 +72,7 @@ def process_obj_files_in_folder(folder_path, csv_df, output_folder):
 
             # Save normalised shape
             save_vertices_and_faces_to_obj(output_file_path, scaled_vertices, faces)
+            print(input_file_path)
             normalized_shapes[file_name] = {
                 "vertices": scaled_vertices,
                 "faces": faces,
@@ -99,7 +100,7 @@ def save_normalization_details_to_csv(normalized_shapes, output_csv_file):
     pd.DataFrame(data).to_csv(output_csv_file, index=False)
 
 # Main 
-folder_path = 'refined_dataset'
+folder_path = 'hole_normal_dataset'
 csv_file_path = 'refined_dataset_statistics.csv'
 output_folder = 'normalised_dataset'
 output_csv_file = 'normalised_dataset_statistics.csv'

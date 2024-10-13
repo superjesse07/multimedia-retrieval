@@ -6,10 +6,10 @@ def process_obj_file(file_path, destination_path):
     if isinstance(mesh, trimesh.Trimesh):
 
         if not mesh.is_watertight:
-            filled_mesh = mesh.fill_holes()
+            mesh.fill_holes()
 
-            if isinstance(filled_mesh, trimesh.Trimesh):
-                mesh = filled_mesh
+            # if isinstance(filled_mesh, trimesh.Trimesh):
+            #     mesh = filled_mesh
 
         mesh.fix_normals()
 
@@ -35,7 +35,7 @@ def process_directory(source_folder, target_folder):
                 print(f"Finished processing {destination_path}.")
 
 if __name__ == "__main__":
-    source_folder = "refined_dataset"
+    source_folder = "watertight_dataset"
 
     target_folder = "hole_normal_dataset"
 

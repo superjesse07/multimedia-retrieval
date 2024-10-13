@@ -78,7 +78,6 @@ def process_obj_files(input_dir, output_dir):
             if file.endswith('.obj'):
                 input_filepath = os.path.join(root, file)
                 output_filepath = os.path.join(output_subdir, file)
-
                 vertices, obj_lines = load_obj(input_filepath)
 
                 normalized_vertices = normalize_shape(vertices, input_filepath)
