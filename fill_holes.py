@@ -5,9 +5,6 @@ from pathlib import Path
 
 
 def fill_holes(mesh: o3d.geometry.TriangleMesh):
-	mesh = mesh.remove_duplicated_vertices()
-	mesh = mesh.remove_degenerate_triangles()
-	mesh = mesh.remove_non_manifold_edges()
 	try:
 		half_edge_mesh : o3d.geometry.HalfEdgeTriangleMesh = o3d.geometry.HalfEdgeTriangleMesh.create_from_triangle_mesh(mesh)
 		vertices = np.asarray(mesh.vertices)

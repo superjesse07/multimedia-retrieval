@@ -4,11 +4,12 @@ from pathlib import Path
 import csv
 import pandas as pd
 import matplotlib.pyplot as plt
+import fill_holes
 
 def clean_mesh(mesh):
-    mesh.remove_duplicated_vertices()
-    mesh.remove_degenerate_triangles()
-    mesh.remove_non_manifold_edges()
+    #mesh = mesh.merge_close_vertices(0.01)
+    mesh = mesh.remove_duplicated_vertices()
+    mesh = mesh.remove_degenerate_triangles()
     return mesh
 
 def aggressive_preprocess(mesh, target_count=5000, reduction_factor=0.5):
@@ -29,7 +30,6 @@ def refine_meshes(input_path, output_path, target_count=5000,
         mesh = original_mesh
         vertices_count = len(mesh.vertices)
         faces_count = len(mesh.triangles)
-
         if faces_count > heavy_decimation_threshold or vertices_count > heavy_decimation_threshold:
             mesh = aggressive_preprocess(mesh, target_count=target_count)
             vertices_count = len(mesh.vertices)
@@ -37,6 +37,8 @@ def refine_meshes(input_path, output_path, target_count=5000,
 
         iterations = 0
         last_valid_mesh = mesh
+        mesh = clean_mesh(mesh)
+        last_vertices_count = vertices_count
         while (abs(vertices_count - target_count) > target_count * tolerance or 
                vertices_count > max_vertices or faces_count > max_faces) and iterations < max_iterations:
             iterations += 1
@@ -46,7 +48,10 @@ def refine_meshes(input_path, output_path, target_count=5000,
                 current_reduction_factor = target_count / vertices_count
                 mesh = mesh.simplify_quadric_decimation(target_number_of_triangles=int(len(mesh.triangles) * current_reduction_factor))
             mesh = clean_mesh(mesh)
+            last_vertices_count = vertices_count
             vertices_count = len(mesh.vertices)
+            if(vertices_count == last_vertices_count):
+                break
             faces_count = len(mesh.triangles)
 
         vertices_count = len(mesh.vertices)
@@ -86,6 +91,7 @@ def process_directory(input_dir, output_dir, output_csv):
             for file in files:
                 if file.endswith(".obj"):
                     input_path = os.path.join(root, file)
+                    print(input_path)
 
                     class_name = Path(root).stem
                     class_output_dir = os.path.join(output_dir, class_name)
@@ -105,29 +111,25 @@ def process_directory(input_dir, output_dir, output_csv):
                             'max_bound': result['max_bound']
                         })
 
+
+#refine_meshes("dataset\AircraftBuoyant\m1339.obj","test.obj")
+
 input_dir = os.path.join(os.path.dirname(__file__), 'dataset')
 output_dir = os.path.join(os.path.dirname(__file__), 'refined_dataset')
 output_csv = os.path.join(os.path.dirname(__file__), 'refined_dataset_statistics.csv')
-
 process_directory(input_dir, output_dir, output_csv)
 print("Refinement process completed.")
-
 # To display the histogram after refinement
 csv_file_path = 'refined_dataset_statistics.csv'  
 data = pd.read_csv(csv_file_path)
-
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
-
 ax1.hist(data['vertices'], bins=30, color='skyblue', edgecolor='black')
 ax1.set_title('Vertex Count Distribution')
 ax1.set_xlabel('Vertex Count')
 ax1.set_ylabel('Frequency')
-
 ax2.hist(data['faces'], bins=30, color='salmon', edgecolor='black')
 ax2.set_title('Face Count Distribution')
 ax2.set_xlabel('Face Count')
 ax2.set_ylabel('Frequency')
-
 plt.tight_layout()
-
 plt.show()
