@@ -24,7 +24,7 @@ def save_obj(filepath, vertices, original_obj_lines):
                 file.write(line)
 
 def correct_rotation(eigenvalues,eigenvectors):
-    eigenvectors[:,[0,1,2]] = eigenvectors[:,eigenvalues.argsort()]
+    eigenvectors[:,[2,1,0]] = eigenvectors[:,eigenvalues.argsort()]
 
     for i in range(3):
         if np.dot(eigenvectors[:, i], [1 if i == j else 0 for j in range(3)]) < 0:

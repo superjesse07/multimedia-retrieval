@@ -58,7 +58,7 @@ def get_eccentricity(mesh: o3d.geometry.TriangleMesh):
     cov = np.cov(np.asarray(mesh.vertices).T)
     eigenvalues, eigenvectors = np.linalg.eig(cov)
     sorted_eigenvalues = np.abs(np.sort(eigenvalues))
-    return sorted_eigenvalues[0] / sorted_eigenvalues[2]
+    return sorted_eigenvalues[2] / sorted_eigenvalues[0]
 
 # barycenter (needs recplacement still)
 def compute_barycenter(vertices):
@@ -121,6 +121,6 @@ def extract_shape_descriptors(mesh, num_samples=1000, bins=10):
 
 
 #Load one file
-mesh_file = "normalised_dataset/Bed/D00110.obj"
+mesh_file = "normalised_v2_dataset/Knife/m726.obj"
 mesh = o3d.io.read_triangle_mesh(mesh_file)  
 extract_features(mesh)  
