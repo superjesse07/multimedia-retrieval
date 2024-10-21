@@ -1,32 +1,35 @@
-﻿import math
+﻿import os
+import math
 import open3d as o3d
 import numpy as np
+import pandas as pd
 from joblib import Parallel, delayed  
 
 def extract_features(mesh: o3d.geometry.TriangleMesh):
     area = mesh.get_surface_area()
-    print(f"Area: {area}")
     volume = get_volume(mesh)
-    print(f"Volume: {volume}")
     compactness = get_compactness(area, volume)
-    print(f"Compactness: {compactness}")
     rectangularity = volume / mesh.get_oriented_bounding_box().volume()
-    print(f"Rectangularity: {rectangularity}")
     convex_hull = mesh.compute_convex_hull()[0]
     convexity = volume / get_volume(convex_hull)
-    print(f"Convexity: {convexity}")
     diameter = get_diameter(mesh)
-    print(f"Diameter: {diameter}")
     eccentricity = get_eccentricity(mesh)
-    print(f"Eccentricity: {eccentricity}")
-
-    #A1, D1 D2 D3 D4
     num_samples = 1000
     bins = 10
     descriptor = extract_shape_descriptors(mesh, num_samples=num_samples, bins=bins)
-    print(f"Shape Descriptors (A3, D1, D2, D3, D4): {descriptor}")
-
-
+    
+    features = {
+        "area": area,
+        "volume": volume,
+        "compactness": compactness,
+        "rectangularity": rectangularity,
+        "convexity": convexity,
+        "diameter": diameter,
+        "eccentricity": eccentricity,
+        "shape_descriptors": descriptor.tolist()
+    }
+    
+    return features
 
 # Volume
 def get_volume(mesh: o3d.geometry.TriangleMesh):
@@ -47,20 +50,25 @@ def signed_volume_triangles(v0, v1, v2):
 def get_compactness(area: float, volume: float):
     return (area ** 3) / (36 * math.pi * (volume ** 2))
 
-# diameter (Vectorized)
+# Diameter (Vectorized)
 def get_diameter(mesh: o3d.geometry.TriangleMesh):
     vertices = np.asarray(mesh.vertices)
-    distances = np.linalg.norm(vertices[:, np.newaxis] - vertices, axis=2)
-    return np.max(distances)
+    # Compute pairwise distances in chunks to avoid memory issues
+    max_dist = 0
+    chunk_size = 1000
+    for i in range(0, len(vertices), chunk_size):
+        distances = np.linalg.norm(vertices[i:i+chunk_size][:, np.newaxis] - vertices, axis=2)
+        max_dist = max(max_dist, np.max(distances))
+    return max_dist
 
-# eccentricity 
+# Eccentricity 
 def get_eccentricity(mesh: o3d.geometry.TriangleMesh):
     cov = np.cov(np.asarray(mesh.vertices).T)
     eigenvalues, eigenvectors = np.linalg.eig(cov)
     sorted_eigenvalues = np.abs(np.sort(eigenvalues))
     return sorted_eigenvalues[2] / sorted_eigenvalues[0]
 
-# barycenter (needs recplacement still)
+# Barycenter
 def compute_barycenter(vertices):
     return np.mean(vertices, axis=0)
 
@@ -78,8 +86,13 @@ def compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices):
         # A3: Angle between vectors
         vec1 = v1 - v0
         vec2 = v2 - v0
-        cos_angle = np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
-        A3_values.append(np.arccos(np.clip(cos_angle, -1.0, 1.0)))
+        norm_vec1 = np.linalg.norm(vec1)
+        norm_vec2 = np.linalg.norm(vec2)
+        if norm_vec1 > 0 and norm_vec2 > 0:
+            cos_angle = np.dot(vec1, vec2) / (norm_vec1 * norm_vec2)
+            A3_values.append(np.arccos(np.clip(cos_angle, -1.0, 1.0)))
+        else:
+            A3_values.append(0.0)  # Default value when division by zero would occur
 
         # D1: Distance from barycenter to vertex
         D1_values.append(np.linalg.norm(barycenter - v0))
@@ -96,7 +109,6 @@ def compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices):
         D4_values.append(np.cbrt(volume))
 
     return A3_values, D1_values, D2_values, D3_values, D4_values
-
 
 def compute_histogram(values, bins=10, range_min=0, range_max=1):
     histogram, _ = np.histogram(values, bins=bins, range=(range_min, range_max))
@@ -119,8 +131,31 @@ def extract_shape_descriptors(mesh, num_samples=1000, bins=10):
     descriptor = np.concatenate([A3_hist, D1_hist, D2_hist, D3_hist, D4_hist])
     return descriptor
 
+def process_file(file_path):
+    try:
+        mesh = o3d.io.read_triangle_mesh(file_path)
+        features = extract_features(mesh)
+        return features
+    except Exception as e:
+        print(f"Error processing {file_path}: {e}")
+        return None
 
-#Load one file
-mesh_file = "normalised_v2_dataset/Knife/m726.obj"
-mesh = o3d.io.read_triangle_mesh(mesh_file)  
-extract_features(mesh)  
+def process_directory(base_dir):
+    categories = os.listdir(base_dir)
+    for category in categories:
+        category_path = os.path.join(base_dir, category)
+        if os.path.isdir(category_path):
+            output_data = []
+            files = [f for f in os.listdir(category_path) if f.endswith('.obj')]
+            for file in files:
+                file_path = os.path.join(category_path, file)
+                print(f"Processing file: {file_path}")
+                features = process_file(file_path)
+                if features:
+                    output_data.append(features)
+            output_df = pd.DataFrame(output_data)
+            output_df.to_csv(os.path.join(category_path, f"{category}_features.csv"), index=False)
+
+# Process the entire dataset
+base_dir = "normalised_v2_dataset"
+process_directory(base_dir)
