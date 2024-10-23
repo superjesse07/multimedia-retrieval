@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed  
 
-def extract_features(mesh: o3d.geometry.TriangleMesh):
+def extract_features(category,file,mesh: o3d.geometry.TriangleMesh):
     area = mesh.get_surface_area()
     volume = get_volume(mesh)
     compactness = get_compactness(area, volume)
@@ -16,9 +16,11 @@ def extract_features(mesh: o3d.geometry.TriangleMesh):
     eccentricity = get_eccentricity(mesh)
     num_samples = 1000
     bins = 10
-    descriptor = extract_shape_descriptors(mesh, num_samples=num_samples, bins=bins)
+    A3_hist, D1_hist, D2_hist, D3_hist, D4_hist = extract_shape_descriptors(mesh, num_samples=num_samples, bins=bins)
     
     features = {
+        "category": category,
+        "file": file,
         "area": area,
         "volume": volume,
         "compactness": compactness,
@@ -26,7 +28,11 @@ def extract_features(mesh: o3d.geometry.TriangleMesh):
         "convexity": convexity,
         "diameter": diameter,
         "eccentricity": eccentricity,
-        "shape_descriptors": descriptor.tolist()
+        "A3": A3_hist,
+        "D1": D1_hist,
+        "D2": D2_hist,
+        "D3": D3_hist,
+        "D4": D4_hist,
     }
     
     return features
@@ -127,14 +133,13 @@ def extract_shape_descriptors(mesh, num_samples=1000, bins=10):
     D3_hist = compute_histogram(D3_values, bins=bins, range_min=0, range_max=1)
     D4_hist = compute_histogram(D4_values, bins=bins, range_min=0, range_max=1)
 
-    # Combine all histograms into a single descriptor
-    descriptor = np.concatenate([A3_hist, D1_hist, D2_hist, D3_hist, D4_hist])
-    return descriptor
 
-def process_file(file_path):
+    return  A3_hist, D1_hist, D2_hist, D3_hist, D4_hist
+
+def process_file(category,file,file_path):
     try:
         mesh = o3d.io.read_triangle_mesh(file_path)
-        features = extract_features(mesh)
+        features = extract_features(category,file,mesh)
         return features
     except Exception as e:
         print(f"Error processing {file_path}: {e}")
@@ -142,19 +147,19 @@ def process_file(file_path):
 
 def process_directory(base_dir):
     categories = os.listdir(base_dir)
+    output_data = []
     for category in categories:
         category_path = os.path.join(base_dir, category)
         if os.path.isdir(category_path):
-            output_data = []
             files = [f for f in os.listdir(category_path) if f.endswith('.obj')]
             for file in files:
                 file_path = os.path.join(category_path, file)
                 print(f"Processing file: {file_path}")
-                features = process_file(file_path)
+                features = process_file(category,file,file_path)
                 if features:
                     output_data.append(features)
-            output_df = pd.DataFrame(output_data)
-            output_df.to_csv(os.path.join(category_path, f"{category}_features.csv"), index=False)
+    output_df = pd.DataFrame(output_data)
+    output_df.to_csv("feature_database.csv", index=False)
 
 # Process the entire dataset
 base_dir = "normalised_v2_dataset"
