@@ -5,38 +5,6 @@ import numpy as np
 import pandas as pd
 from joblib import Parallel, delayed  
 
-def extract_features(category,file,mesh: o3d.geometry.TriangleMesh):
-    area = mesh.get_surface_area()
-    volume = get_volume(mesh)
-    compactness = get_compactness(area, volume)
-    rectangularity = volume / mesh.get_oriented_bounding_box().volume()
-    convex_hull = mesh.compute_convex_hull()[0]
-    convexity = volume / get_volume(convex_hull)
-    diameter = get_diameter(mesh)
-    eccentricity = get_eccentricity(mesh)
-    num_samples = 1000
-    bins = 10
-    A3_hist, D1_hist, D2_hist, D3_hist, D4_hist = extract_shape_descriptors(mesh, num_samples=num_samples, bins=bins)
-    
-    features = {
-        "category": category,
-        "file": file,
-        "area": area,
-        "volume": volume,
-        "compactness": compactness,
-        "rectangularity": rectangularity,
-        "convexity": convexity,
-        "diameter": diameter,
-        "eccentricity": eccentricity,
-        "A3": A3_hist,
-        "D1": D1_hist,
-        "D2": D2_hist,
-        "D3": D3_hist,
-        "D4": D4_hist,
-    }
-    
-    return features
-
 # Volume
 def get_volume(mesh: o3d.geometry.TriangleMesh):
     vertices = np.asarray(mesh.vertices)
@@ -82,11 +50,13 @@ def compute_barycenter(vertices):
 def random_vertex_indices(num_vertices, num_samples, points_per_sample=3):
     return np.random.randint(0, num_vertices, size=(num_samples, points_per_sample))
 
+
 # A3, D1, D2, D3, D4
-def compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices):
+def compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices_all, random_indices_D1, triangle_centers):
     A3_values, D1_values, D2_values, D3_values, D4_values = [], [], [], [], []
 
-    for indices in random_indices:
+    # Compute for random indices (100k samples for all features except D1)
+    for indices in random_indices_all:
         v0, v1, v2 = vertices[indices[0]], vertices[indices[1]], vertices[indices[2]]
         
         # A3: Angle between vectors
@@ -100,9 +70,6 @@ def compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices):
         else:
             A3_values.append(0.0)  # Default value when division by zero would occur
 
-        # D1: Distance from barycenter to vertex
-        D1_values.append(np.linalg.norm(barycenter - v0))
-
         # D2: Distance between two random vertices
         D2_values.append(np.linalg.norm(v0 - v1))
 
@@ -114,27 +81,89 @@ def compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices):
         volume = np.abs(np.dot(v3 - v0, np.cross(v1 - v0, v2 - v0))) / 6.0
         D4_values.append(np.cbrt(volume))
 
+    # Compute for D1 (5k samples + 1.5k triangle centers)
+    for indices in random_indices_D1:
+        v0 = vertices[indices[0]]
+        D1_values.append(np.linalg.norm(barycenter - v0))
+
+    for center in triangle_centers:
+        D1_values.append(np.linalg.norm(barycenter - center))
+
     return A3_values, D1_values, D2_values, D3_values, D4_values
 
 def compute_histogram(values, bins=10, range_min=0, range_max=1):
     histogram, _ = np.histogram(values, bins=bins, range=(range_min, range_max))
     return histogram / np.sum(histogram)
 
-def extract_shape_descriptors(mesh, num_samples=1000, bins=10):
+def extract_shape_descriptors(mesh, num_samples_all=100000, num_samples_D1=5000, num_triangle_centers=1500, bins_all=100, bins_D1=30):
     vertices = np.asarray(mesh.vertices)
     barycenter = compute_barycenter(vertices)
 
-    random_indices = random_vertex_indices(len(vertices), num_samples)
-    A3_values, D1_values, D2_values, D3_values, D4_values = compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices)
+    # Random sampling for all other descriptors (100k samples)
+    random_indices_all = random_vertex_indices(len(vertices), num_samples_all)
 
-    A3_hist = compute_histogram(A3_values, bins=bins, range_min=0, range_max=np.pi)
-    D1_hist = compute_histogram(D1_values, bins=bins, range_min=0, range_max=1)
-    D2_hist = compute_histogram(D2_values, bins=bins, range_min=0, range_max=1)
-    D3_hist = compute_histogram(D3_values, bins=bins, range_min=0, range_max=1)
-    D4_hist = compute_histogram(D4_values, bins=bins, range_min=0, range_max=1)
+    # Random sampling for D1 (5k samples + triangle centers)
+    random_indices_D1 = random_vertex_indices(len(vertices), num_samples_D1)
+    triangle_centers = np.asarray(mesh.triangles).mean(axis=1)
+    triangle_center_indices = np.random.choice(len(triangle_centers), num_triangle_centers)
+    
+    A3_values, D1_values, D2_values, D3_values, D4_values = compute_A3_D1_D2_D3_D4(
+        vertices, barycenter, random_indices_all, random_indices_D1, triangle_centers[triangle_center_indices]
+    )
+
+    # Compute histograms with 100 bins for A3, D2, D3, D4, and 30 bins for D1
+    A3_hist = compute_histogram(A3_values, bins=bins_all, range_min=0, range_max=np.pi)
+    D1_hist = compute_histogram(D1_values, bins=bins_D1, range_min=0, range_max=1)
+    D2_hist = compute_histogram(D2_values, bins=bins_all, range_min=0, range_max=1)
+    D3_hist = compute_histogram(D3_values, bins=bins_all, range_min=0, range_max=1)
+    D4_hist = compute_histogram(D4_values, bins=bins_all, range_min=0, range_max=1)
+
+    return A3_hist, D1_hist, D2_hist, D3_hist, D4_hist
 
 
-    return  A3_hist, D1_hist, D2_hist, D3_hist, D4_hist
+def extract_features(category, file, mesh: o3d.geometry.TriangleMesh):
+    area = mesh.get_surface_area()
+    volume = get_volume(mesh)  # Ensure this calls the get_volume function
+    compactness = get_compactness(area, volume)
+    rectangularity = volume / mesh.get_oriented_bounding_box().volume()
+    convex_hull = mesh.compute_convex_hull()[0]
+    convexity = volume / get_volume(convex_hull)  # Ensure the convex hull volume is computed
+    diameter = get_diameter(mesh)
+    eccentricity = get_eccentricity(mesh)
+    
+    # Use 100k samples for A3, D2, D3, D4
+    num_samples_all = 100000  
+    # Use 5k samples for D1 + 1.5k triangle center points
+    num_samples_D1 = 5000
+    num_triangle_centers = 1500
+    
+    bins_all = 100  # For A3, D2, D3, D4
+    bins_D1 = 30    # For D1
+
+    A3_hist, D1_hist, D2_hist, D3_hist, D4_hist = extract_shape_descriptors(
+        mesh, num_samples_all=num_samples_all, 
+        num_samples_D1=num_samples_D1, num_triangle_centers=num_triangle_centers,
+        bins_all=bins_all, bins_D1=bins_D1
+    )
+    
+    features = {
+        "category": category,
+        "file": file,
+        "area": area,
+        "volume": volume,
+        "compactness": compactness,
+        "rectangularity": rectangularity,
+        "convexity": convexity,
+        "diameter": diameter,
+        "eccentricity": eccentricity,
+        "A3": A3_hist,
+        "D1": D1_hist,
+        "D2": D2_hist,
+        "D3": D3_hist,
+        "D4": D4_hist,
+    }
+    
+    return features
 
 def process_file(category,file,file_path):
     try:
@@ -159,8 +188,9 @@ def process_directory(base_dir):
                 if features:
                     output_data.append(features)
     output_df = pd.DataFrame(output_data)
-    output_df.to_csv("feature_database.csv", index=False)
+    output_df.to_csv("feature_database_2.csv", index=False)
 
 # Process the entire dataset
 base_dir = "normalised_v2_dataset"
 process_directory(base_dir)
+
