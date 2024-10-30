@@ -13,8 +13,6 @@ def process_obj_file(file_path, destination_path):
 
         mesh.fix_normals()
 
-        os.makedirs(os.path.dirname(destination_path), exist_ok=True)
-
         mesh.export(destination_path)
         print(f"Processed and saved: {destination_path}")
     else:
@@ -29,6 +27,7 @@ def process_directory(source_folder, target_folder):
 
                 relative_path = os.path.relpath(file_path, source_folder)
                 destination_path = os.path.join(target_folder, relative_path)
+                os.makedirs(os.path.dirname(destination_path), exist_ok=True)
 
                 print(f"Processing {file_path}...")
                 process_obj_file(file_path, destination_path)
