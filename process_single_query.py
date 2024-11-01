@@ -59,11 +59,7 @@ def compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices):
         v3 = vertices[np.random.randint(0, len(vertices))]
         volume = np.abs(np.dot(v3 - v0, np.cross(v1 - v0, v2 - v0))) / 6.0
         D4_values.append(np.cbrt(volume))
-    print("A3_values length:", len(A3_values))
-    print("D1_values length:", len(D1_values))
-    print("D2_values length:", len(D2_values))
-    print("D3_values length:", len(D3_values))
-    print("D4_values length:", len(D4_values))
+
     return A3_values, D1_values, D2_values, D3_values, D4_values
 
 def compute_histogram(values, bins=10, range_min=0, range_max=1):
@@ -73,25 +69,16 @@ def compute_histogram(values, bins=10, range_min=0, range_max=1):
 def extract_shape_descriptors(mesh):
     vertices = np.asarray(mesh.vertices)
     barycenter = compute_barycenter(vertices)
-    print("Generating random indices for A3, D2, D3, D4 descriptors...")
     random_indices_A3_D2_D3_D4 = random_vertex_indices(len(vertices), 100000)
-    print("Calling compute_A3_D1_D2_D3_D4...")
-    result = compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices_A3_D2_D3_D4)
-    print("compute_A3_D1_D2_D3_D4 result:", result)
-    if len(result) != 5:
-        print("Error: compute_A3_D1_D2_D3_D4 did not return the expected 5 values.")
-    else:
-        A3_values, D1_values, D2_values, D3_values, D4_values = result
+    A3_values, D1_values, D2_values, D3_values, D4_values = compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices_A3_D2_D3_D4)
     A3_hist = compute_histogram(A3_values, bins=100, range_min=0, range_max=np.pi)
     D2_hist = compute_histogram(D2_values, bins=100, range_min=0, range_max=1)
     D3_hist = compute_histogram(D3_values, bins=100, range_min=0, range_max=1)
     D4_hist = compute_histogram(D4_values, bins=100, range_min=0, range_max=1)
-    print("A3, D2, D3, D4 descriptors computed successfully.")
     D1_values = []
     D1_values += compute_D1_samples(vertices, barycenter, sample_size=5000)
     D1_values += compute_D1_face_centroid_samples(mesh, barycenter, sample_size=1500)
     D1_hist = compute_histogram(D1_values, bins=30, range_min=0, range_max=1)
-    print("D1 descriptor computed successfully. Returning all descriptors.")
     return A3_hist, D1_hist, D2_hist, D3_hist, D4_hist
 
 def compute_D1_samples(vertices, barycenter, sample_size=5000):
@@ -107,11 +94,9 @@ def compute_D1_face_centroid_samples(mesh, barycenter, sample_size=1500):
 
 def process_single_query(file_path):
     try:
-        print(f"Attempting to load mesh from: {file_path}")
         mesh = o3d.io.read_triangle_mesh(file_path)
         if not mesh.has_vertices():
             raise ValueError("Mesh has no vertices")
-        print("Mesh loaded successfully.")
         area = mesh.get_surface_area()
         volume = get_volume(mesh)
         compactness = get_compactness(area, volume)
@@ -120,10 +105,7 @@ def process_single_query(file_path):
         convexity = volume / get_volume(convex_hull)
         diameter = get_diameter(mesh)
         eccentricity = get_eccentricity(mesh)
-        print("Basic features computed successfully.")
-        print("Calling extract_shape_descriptors...")
         A3_hist, D1_hist, D2_hist, D3_hist, D4_hist = extract_shape_descriptors(mesh)
-        print("Shape descriptors extracted successfully.")
         features = {
             "area": area,
             "volume": volume,
@@ -138,14 +120,10 @@ def process_single_query(file_path):
             "D3": D3_hist,
             "D4": D4_hist,
         }
-        print("Features combined successfully.")
         return features
     except Exception as e:
-        print(f"Error processing {file_path}: {e}")
         return None
 
 if __name__ == "__main__":
     query_file_path = "path/to/your/query.obj"  
     query_features = process_single_query(query_file_path)
-    if query_features:
-        print("Query features:", query_features)
