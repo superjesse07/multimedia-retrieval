@@ -70,7 +70,13 @@ def extract_shape_descriptors(mesh):
     vertices = np.asarray(mesh.vertices)
     barycenter = compute_barycenter(vertices)
     random_indices_A3_D2_D3_D4 = random_vertex_indices(len(vertices), 100000)
-    A3_values, D1_values, D2_values, D3_values, D4_values = compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices_A3_D2_D3_D4)
+    print("Calling compute_A3_D1_D2_D3_D4...")
+    result = compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices_A3_D2_D3_D4)
+    print("compute_A3_D1_D2_D3_D4 result:", result)
+    if len(result) != 5:
+        print("Error: compute_A3_D1_D2_D3_D4 did not return the expected 5 values.")
+    else:
+        A3_values, D1_values, D2_values, D3_values, D4_values = result
     A3_hist = compute_histogram(A3_values, bins=100, range_min=0, range_max=np.pi)
     D2_hist = compute_histogram(D2_values, bins=100, range_min=0, range_max=1)
     D3_hist = compute_histogram(D3_values, bins=100, range_min=0, range_max=1)

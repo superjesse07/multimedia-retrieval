@@ -6,7 +6,7 @@ from PyQt5.QtGui import QMouseEvent, QWheelEvent
 from pathlib import Path
 from pyrr import Matrix44, Quaternion
 import moderngl
-import openmesh
+import open3d as o3
 from PyQt5.QtWidgets import QShortcut
 from PyQt5.QtGui import QKeySequence
 
@@ -45,7 +45,6 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
         self.prev_y = 0
         self.sensitivity = math.pi / 100
 
-        self.barycenter = [0, 0, 0]
         self.cell = 50
         self.size = 5
         self.grid = grid(self.size, self.cell)
@@ -119,15 +118,12 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
         if self.mesh is None:
             return
 
-        translation = Matrix44.from_translation(self.barycenter)
-        self.mvp.write((proj * lookat * self.object_rotation.matrix44 * translation).astype('f4'))
-
         vao_content = [
-            (self.ctx.buffer(np.array(self.mesh.points(), dtype="f4").tobytes()), '3f', 'in_position'),
-            (self.ctx.buffer(np.array(self.mesh.vertex_normals(), dtype="f4").tobytes()), '3f', 'in_normal'),
+            (self.ctx.buffer(np.asarray(self.mesh.vertices, dtype="f4").tobytes()), '3f', 'in_position'),
+            (self.ctx.buffer(np.asarray(self.mesh.vertex_normals, dtype="f4").tobytes()), '3f', 'in_normal'),
         ]
 
-        index_buffer = self.ctx.buffer(np.array(self.mesh.face_vertex_indices(), dtype="u4").tobytes())
+        index_buffer = self.ctx.buffer(np.asarray(self.mesh.triangles, dtype="u4").tobytes())
         self.vao = self.ctx.vertex_array(self.prog, vao_content, index_buffer)
 
         if self.shaded_mode:
@@ -146,18 +142,17 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
 
 
 
-    def set_mesh(self, new_mesh: openmesh.PolyMesh):
+    def set_mesh(self, new_mesh: o3.geometry.TriangleMesh):
         if new_mesh is None:
             self.set_scene()
             return
 
         self.mesh = new_mesh
-        self.mesh.update_normals()
-        self.barycenter = -get_barycenter(self.mesh)
+        self.mesh.compute_vertex_normals()
 
-        index_buffer = self.ctx.buffer(np.array(self.mesh.face_vertex_indices(), dtype="u4").tobytes())
-        vao_content = [(self.ctx.buffer(np.array(self.mesh.points(), dtype="f4").tobytes()), '3f', 'in_position'),
-                       (self.ctx.buffer(np.array(self.mesh.vertex_normals(), dtype="f4").tobytes()), '3f', 'in_normal')]
+        index_buffer = self.ctx.buffer(np.asarray(self.mesh.triangles, dtype="u4").tobytes())
+        vao_content = [(self.ctx.buffer(np.asarray(self.mesh.vertices, dtype="f4").tobytes()), '3f', 'in_position'),
+                       (self.ctx.buffer(np.asarray(self.mesh.vertex_normals, dtype="f4").tobytes()), '3f', 'in_normal')]
         self.vao = self.ctx.vertex_array(self.prog, vao_content, index_buffer, 4)
 
     def resizeGL(self, width, height):

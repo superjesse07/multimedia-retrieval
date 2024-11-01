@@ -85,6 +85,19 @@ def process_obj_files_in_folder(folder_path, csv_df, output_folder):
 
     return normalized_shapes
 
+def process_obj_file(input_path,output_path):
+    # Process vertices and faces
+    vertices, faces = extract_vertices_and_faces_from_obj(input_path)
+    barycenter = calculate_vertex_barycenter(vertices)
+    translated_vertices = translate_to_origin(vertices, barycenter)
+    bounding_box = calculate_bounding_box(translated_vertices)
+    scaling_factor = calculate_scaling_factor(bounding_box)
+    scaled_vertices = scale_vertices(translated_vertices, scaling_factor)
+    final_barycenter = calculate_vertex_barycenter(scaled_vertices)
+
+    # Save normalised shape
+    save_vertices_and_faces_to_obj(output_path, scaled_vertices, faces)
+
 def save_normalization_details_to_csv(normalized_shapes, output_csv_file):
     """Save normalization details to a new CSV file."""
     data = [{
@@ -99,21 +112,22 @@ def save_normalization_details_to_csv(normalized_shapes, output_csv_file):
 
     pd.DataFrame(data).to_csv(output_csv_file, index=False)
 
-# Main 
-folder_path = 'hole_normal_dataset'
-csv_file_path = 'refined_dataset_statistics.csv'
-output_folder = 'normalised_dataset'
-output_csv_file = 'normalised_dataset_statistics.csv'
+if __name__ == "__main__":
+    # Main
+    folder_path = 'hole_normal_dataset'
+    csv_file_path = 'refined_dataset_statistics.csv'
+    output_folder = 'normalised_dataset'
+    output_csv_file = 'normalised_dataset_statistics.csv'
 
-csv_df = pd.read_csv(csv_file_path)
-normalized_shapes = process_obj_files_in_folder(folder_path, csv_df, output_folder)
-save_normalization_details_to_csv(normalized_shapes, output_csv_file)
+    csv_df = pd.read_csv(csv_file_path)
+    normalized_shapes = process_obj_files_in_folder(folder_path, csv_df, output_folder)
+    save_normalization_details_to_csv(normalized_shapes, output_csv_file)
 
-# Plot barycenter coordinate differences
-df = pd.read_csv(output_csv_file)
-plt.figure(figsize=(8, 6))
-sns.violinplot(data=df[['Barycenter_X', 'Barycenter_Y', 'Barycenter_Z']])
-plt.title("Barycenter Coordinate Differences")
-plt.ylabel("Difference from Origin")
-plt.xlabel("Coordinate")
-plt.show()
+    # Plot barycenter coordinate differences
+    df = pd.read_csv(output_csv_file)
+    plt.figure(figsize=(8, 6))
+    sns.violinplot(data=df[['Barycenter_X', 'Barycenter_Y', 'Barycenter_Z']])
+    plt.title("Barycenter Coordinate Differences")
+    plt.ylabel("Difference from Origin")
+    plt.xlabel("Coordinate")
+    plt.show()

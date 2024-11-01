@@ -113,23 +113,23 @@ def process_directory(input_dir, output_dir, output_csv):
 
 
 #refine_meshes("dataset\AircraftBuoyant\m1339.obj","test.obj")
-
-input_dir = os.path.join(os.path.dirname(__file__), 'dataset')
-output_dir = os.path.join(os.path.dirname(__file__), 'refined_dataset')
-output_csv = os.path.join(os.path.dirname(__file__), 'refined_dataset_statistics.csv')
-process_directory(input_dir, output_dir, output_csv)
-print("Refinement process completed.")
-# To display the histogram after refinement
-csv_file_path = 'refined_dataset_statistics.csv'  
-data = pd.read_csv(csv_file_path)
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
-ax1.hist(data['vertices'], bins=30, color='skyblue', edgecolor='black')
-ax1.set_title('Vertex Count Distribution')
-ax1.set_xlabel('Vertex Count')
-ax1.set_ylabel('Frequency')
-ax2.hist(data['faces'], bins=30, color='salmon', edgecolor='black')
-ax2.set_title('Face Count Distribution')
-ax2.set_xlabel('Face Count')
-ax2.set_ylabel('Frequency')
-plt.tight_layout()
-plt.show()
+if __name__ == "__main__":
+    input_dir = os.path.join(os.path.dirname(__file__), 'dataset')
+    output_dir = os.path.join(os.path.dirname(__file__), 'refined_dataset')
+    output_csv = os.path.join(os.path.dirname(__file__), 'refined_dataset_statistics.csv')
+    process_directory(input_dir, output_dir, output_csv)
+    print("Refinement process completed.")
+    # To display the histogram after refinement
+    csv_file_path = 'refined_dataset_statistics.csv'  
+    data = pd.read_csv(csv_file_path)
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
+    ax1.hist(data['vertices'], bins=30, color='skyblue', edgecolor='black')
+    ax1.set_title('Vertex Count Distribution')
+    ax1.set_xlabel('Vertex Count')
+    ax1.set_ylabel('Frequency')
+    ax2.hist(data['faces'], bins=30, color='salmon', edgecolor='black')
+    ax2.set_title('Face Count Distribution')
+    ax2.set_xlabel('Face Count')
+    ax2.set_ylabel('Frequency')
+    plt.tight_layout()
+    plt.show()

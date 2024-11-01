@@ -84,9 +84,15 @@ def process_obj_files(input_dir, output_dir):
 
                 save_obj(output_filepath, normalized_vertices, obj_lines)
 
-input_directory = 'normalised_dataset'
-output_directory = 'normalised_v2_dataset'
+def process_obj_file(input_path,output_path):
+    vertices, obj_lines = load_obj(input_path)
+    normalized_vertices = normalize_shape(vertices, input_path)
+    save_obj(output_path, normalized_vertices, obj_lines)
 
-process_obj_files(input_directory, output_directory)
+if __name__ == "__main__":
+    input_directory = 'normalised_dataset'
+    output_directory = 'normalised_v2_dataset'
 
-print("Normalization process completed.")
+    process_obj_files(input_directory, output_directory)
+
+    print("Normalization process completed.")

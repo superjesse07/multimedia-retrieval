@@ -5,8 +5,6 @@ from scipy.stats import wasserstein_distance
 import ast
 import re
 
-query_file_path = r"C:\Users\Carlijn\multimedia-retrieval-3\normalised_v2_dataset\Cup\D00035.obj"
-query_features = process_single_query(query_file_path)
 
 def normalize_query(query_features):
     stats_df = pd.read_csv("normalization_stats.csv", index_col=0)
@@ -21,7 +19,6 @@ def normalize_query(query_features):
     print(normalized_query)
     return normalized_query
 
-normalized_query = normalize_query(query_features)
 
 def parse_histogram(hist_string):
     if isinstance(hist_string, str):
@@ -33,7 +30,7 @@ def parse_histogram(hist_string):
         raise ValueError("Unexpected format for histogram data")
     return array.flatten()
 
-def find_closest_entries(normalized_query, normalized_database_path):
+def find_closest_entries(query_features,normalized_query, normalized_database_path):
     full_database = pd.read_csv(normalized_database_path)
     histogram_columns = ['A3', 'D1', 'D2', 'D3', 'D4']
     feature_columns = full_database.select_dtypes(include=[np.number]).columns
@@ -60,4 +57,11 @@ def find_closest_entries(normalized_query, normalized_database_path):
     print(closest_entries)
     return closest_entries
 
-find_closest_entries(normalized_query, "normalized_feature_database.csv")
+def query_obj(input_path):
+    query_features = process_single_query(input_path)
+    normalized_query = normalize_query(query_features)
+    return find_closest_entries(query_features,normalized_query, "normalized_feature_database.csv")
+
+if __name__ == "__main__":
+    query_file_path = r"normalised_v2_dataset/HumanHead/D00013.obj"
+    query_obj(query_file_path)

@@ -2,7 +2,7 @@
 from idlelib.iomenu import encoding
 
 import numpy as np
-import openmesh
+import open3d as o3
 from PyQt5 import QtCore, QtWidgets
 import sys
 from pathlib import Path
@@ -13,6 +13,12 @@ from contextlib import contextmanager
 from util import get_barycenter
 from viewer import ModelViewerWidget
 import csv
+import refine_mesh
+import Normalisation
+import normalisation_v2
+import fill_holes
+import normals_check
+import distance_function
 
 
 @contextmanager
@@ -34,13 +40,13 @@ class ModelViewerApplication(QtWidgets.QWidget):
 
         self.openGL = ModelViewerWidget(self)
         self.openGL.setGeometry(0, 0, 800, 600)
-        timer = QtCore.QTimer(self)
-        timer.setInterval(20)
-        timer.timeout.connect(self.openGL.updateGL)
-        timer.start()
 
         self.loadButton = QtWidgets.QPushButton("Load model")
         self.loadButton.clicked.connect(self.open_file)
+        self.cleanButton = QtWidgets.QPushButton("Clean Model")
+        self.cleanButton.clicked.connect(self.clean_model)
+        self.queryButton = QtWidgets.QPushButton("Query model")
+        self.queryButton.clicked.connect(self.query_model)
         self.wireframeButton = QtWidgets.QPushButton("Toggle wireframe")
         self.wireframeButton.clicked.connect(self.openGL.toggle_wireframe)
         self.parseButton = QtWidgets.QPushButton("Parse Meshes")
@@ -49,16 +55,75 @@ class ModelViewerApplication(QtWidgets.QWidget):
         self.layout = QtWidgets.QVBoxLayout(self)
         self.topBar = QtWidgets.QHBoxLayout()
         self.topBar.addWidget(self.loadButton)
+        self.topBar.addWidget(self.cleanButton)
+        self.topBar.addWidget(self.queryButton)
         self.topBar.addWidget(self.wireframeButton)
         self.topBar.addWidget(self.parseButton)
         self.layout.addLayout(self.topBar)
         self.layout.addWidget(self.openGL)
 
+        self.query_gl = []
+        self.query_results = QtWidgets.QGridLayout()
+        for i in range(0,10):
+            gl = ModelViewerWidget()
+            gl.setGeometry(0, 0, 800, 600)
+            self.query_results.addWidget(gl,int(i / 5),i % 5)
+            self.query_gl.append(gl)
+        self.layout.addLayout(self.query_results)
+        timer = QtCore.QTimer(self)
+        timer.setInterval(20)
+        timer.timeout.connect(self.update_gl)
+        timer.start()
+
+
+    
+    def update_gl(self):
+        self.openGL.updateGL()
+        for x in self.query_gl:
+            x.updateGL()
+
+    def clean_model(self):
+        if self.openGL.mesh is None:
+            return
+        progress = QtWidgets.QProgressDialog("Refining Mesh...", "Abort Cleaning",0,5,self)
+        progress.setWindowTitle("Cleaning Mesh...")
+        o3.io.write_triangle_mesh("temp.obj",self.openGL.mesh)
+        progress.show()
+        progress.setLabelText("Refining Mesh...")
+        refine_mesh.refine_meshes("temp.obj","temp.obj")
+        progress.setValue(1)
+        progress.setLabelText("Filling Holes...")
+        fill_holes.process_obj_file("temp.obj","temp.obj")
+        progress.setValue(2)
+        progress.setLabelText("Flipping Normals...")
+        normals_check.process_obj_file("temp.obj","temp.obj")
+        progress.setValue(3)
+        progress.setLabelText("Normalizing Mesh...")
+        Normalisation.process_obj_file("temp.obj","temp.obj")
+        progress.setValue(4)
+        normalisation_v2.process_obj_file("temp.obj","temp.obj")
+        progress.setValue(5)
+        progress.close()
+        self.openGL.set_mesh(o3.io.read_triangle_mesh("temp.obj"))
+
+    def query_model(self):
+        if self.openGL.mesh is None:
+            return
+        progress = QtWidgets.QProgressDialog("Querying Mesh...", "",0,1,self)
+        progress.setWindowTitle("Querying Mesh...")
+        progress.show()
+        o3.io.write_triangle_mesh("temp.obj",self.openGL.mesh)
+        results = distance_function.query_obj("temp.obj")
+        for (i,gl) in enumerate(self.query_gl):
+            print(f'normalised_v2_dataset/{results.iloc[i]["category"]}/{results.iloc[i]["file"]}')
+            gl.set_mesh(o3.io.read_triangle_mesh(f'normalised_v2_dataset/{results.iloc[i]["category"]}/{results.iloc[i]["file"]}'))
+        progress.close()
+
     def open_file(self):
         file_name = QtWidgets.QFileDialog.getOpenFileName(None, 'Open file', '', "Mesh files (*.obj *.stl *.ply *.off *.om)")
         if not file_name[0]:
             return
-        self.openGL.set_mesh(openmesh.read_polymesh(file_name[0]))
+        self.openGL.set_mesh(o3.io.read_triangle_mesh(file_name[0]))
 
     def parse_mesh_data(self):
         # Open mesh prints a lot of noise to stderr so this will keep the console clean
@@ -116,6 +181,6 @@ class ModelViewerApplication(QtWidgets.QWidget):
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
     widget = ModelViewerApplication()
-    widget.resize(800, 600)
+    widget.resize(800, 1000)
     widget.show()
     sys.exit(app.exec_())
