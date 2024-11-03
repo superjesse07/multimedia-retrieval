@@ -5,7 +5,7 @@ from scipy.stats import wasserstein_distance
 from scipy.spatial.distance import cityblock  
 import ast
 
-query_file_path = r"C:\Users\Carlijn\multimedia-retrieval-3\normalised_v2_dataset\Bird\D00546.obj"
+query_file_path = r"normalised_v2_dataset/HumanHead/D00013.obj"
 query_features = process_single_query(query_file_path)
 print("query_features keys:", query_features)
 
