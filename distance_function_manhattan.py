@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from process_single_query import process_single_query
 from scipy.stats import wasserstein_distance
-from scipy.spatial.distance import cityblock  # Manhattan distance
+from scipy.spatial.distance import cityblock  
 import ast
 
 query_file_path = r"C:\Users\Carlijn\multimedia-retrieval-3\normalised_v2_dataset\Bird\D00546.obj"
