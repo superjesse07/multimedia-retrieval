@@ -9,7 +9,8 @@ import moderngl
 import open3d as o3
 from PyQt5.QtWidgets import QShortcut
 from PyQt5.QtGui import QKeySequence
-
+from PyQt5.QtCore import QObject, pyqtSignal
+from pyrr import Quaternion
 from util import load_program, get_barycenter
 
 
@@ -27,12 +28,30 @@ def grid(size, steps):
     return np.dot(new_grid, rotation_matrix)
 
 
+class RotationController(QObject):
+    rotation_changed = pyqtSignal(Quaternion)  
+
+    def __init__(self):
+        super().__init__()
+        self.rotation = Quaternion()
+
+    def set_rotation(self, new_rotation: Quaternion):
+        if self.rotation != new_rotation:
+            self.rotation = new_rotation
+            self.rotation_changed.emit(self.rotation) 
+
+
+
 class ModelViewerWidget(QtOpenGL.QGLWidget):
+    rotation_controller = RotationController()  
+
     def __init__(self, parent=None):
         super(ModelViewerWidget, self).__init__(parent)
 
+        ModelViewerWidget.rotation_controller.rotation_changed.connect(self.update_rotation)
+
         self.setMouseTracking(True)
-        self.bg_color = (1.0, 1.0, 1.0, 1.0)  # White background
+        self.bg_color = (1.0, 1.0, 1.0, 1.0) 
         self.fov = 60.0
         self.camera_zoom = 2.0
         self.wireframe = False
@@ -175,16 +194,23 @@ class ModelViewerWidget(QtOpenGL.QGLWidget):
 
     def mouseMoveEvent(self, event: QMouseEvent):
         if event.buttons() & QtCore.Qt.LeftButton:
+            # Calculate rotation changes
             delta_x = (self.prev_x - event.x()) * self.sensitivity
             delta_y = (self.prev_y - event.y()) * self.sensitivity
 
-            self.object_rotation *= Quaternion.from_x_rotation(delta_y)
-            self.object_rotation *= Quaternion.from_y_rotation(delta_x)
-
-            self.update()
-
+            # Update the rotation
+            new_rotation = self.object_rotation * Quaternion.from_x_rotation(delta_y) * Quaternion.from_y_rotation(delta_x)
+            
+            # Set the rotation in the controller, which will trigger all views to update
+            ModelViewerWidget.rotation_controller.set_rotation(new_rotation)
+            
             self.prev_x = event.x()
             self.prev_y = event.y()
+
+    def update_rotation(self, new_rotation: Quaternion):
+        """Update the rotation from the shared rotation controller."""
+        self.object_rotation = new_rotation
+        self.update()
 
     def toggle_wireframe(self):
         self.wireframe = not self.wireframe

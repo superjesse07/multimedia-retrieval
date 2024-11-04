@@ -72,7 +72,7 @@ def extract_shape_descriptors(mesh):
     random_indices_A3_D2_D3_D4 = random_vertex_indices(len(vertices), 100000)
     print("Calling compute_A3_D1_D2_D3_D4...")
     result = compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices_A3_D2_D3_D4)
-    print("compute_A3_D1_D2_D3_D4 result:", result)
+    #print("compute_A3_D1_D2_D3_D4 result:", result)
     if len(result) != 5:
         print("Error: compute_A3_D1_D2_D3_D4 did not return the expected 5 values.")
     else:
