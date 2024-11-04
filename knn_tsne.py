@@ -1,10 +1,19 @@
 import pandas as pd
 import numpy as np
 import faiss
+from process_single_query import process_single_query
+from sklearn.manifold import TSNE
+import matplotlib.pyplot as plt
+import mplcursors
+
 
 def build_faiss_ann_index(normalized_database_path, nlist=100):
     """Build a Faiss ANN index using the IVF Flat index."""
     full_database = pd.read_csv(normalized_database_path)
+
+    histogram_columns = ['A3', 'D1', 'D2', 'D3', 'D4']
+    full_database = flatten_histogram_features(full_database, histogram_columns)
+
     feature_columns = full_database.select_dtypes(include=[np.number]).columns
     normalized_features = full_database[feature_columns].values.astype('float32')
 
@@ -24,6 +33,32 @@ def build_faiss_ann_index(normalized_database_path, nlist=100):
 
 
 
+def flatten_histogram_features(full_database, histogram_columns):
+    """Flatten histogram columns and concatenate them with the numerical features."""
+    flattened_histograms = []
+
+    for col in histogram_columns:
+        full_database[col] = full_database[col].str.replace(" ", ",")
+
+        full_database[col] = full_database[col].str.replace(r',+', ',', regex=True)  
+        full_database[col] = full_database[col].str.strip(",")  
+
+        try:
+            histogram_df = full_database[col].apply(eval).apply(pd.Series)
+        except Exception as e:
+            print(f"Error processing column {col}: {e}")
+            continue 
+
+        histogram_df.columns = [f"{col}_{i}" for i in histogram_df.columns]
+        flattened_histograms.append(histogram_df)
+
+    full_database_flat = pd.concat([full_database.drop(columns=histogram_columns), *flattened_histograms], axis=1)
+    
+    return full_database_flat
+
+
+
+
 colors_100 = [
     "#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4", "#46f0f0", "#f032e6", "#bcf60c", "#fabebe",
     "#008080", "#e6beff", "#9a6324", "#fffac8", "#800000", "#aaffc3", "#808000", "#ffd8b1", "#000075", "#808080",
@@ -38,10 +73,28 @@ colors_100 = [
     "#ffd700", "#ff7f50", "#d2691e", "#8a2be2", "#ff4500"
 ]
 
+def find_k_nearest_neighbors(query_features, database_path, k=10):
+    """Find k nearest neighbors for a given query in a Faiss index."""
+    full_database = pd.read_csv(database_path)
+    histogram_columns = ['A3', 'D1', 'D2', 'D3', 'D4']
+    full_database = flatten_histogram_features(full_database, histogram_columns)
 
-def perform_tsne_and_plot(full_database, features, colors_100, target_dim=2):
+    feature_columns = full_database.select_dtypes(include=[np.number]).columns
+    database_features = full_database[feature_columns].values.astype('float32')
+
+    dimension = database_features.shape[1]
+    index = faiss.IndexFlatL2(dimension)
+    index.add(database_features)
+
+    distances, indices = index.search(query_features.reshape(1, -1), k)
+    neighbors = full_database.iloc[indices[0]]
+    
+    return neighbors
+
+
+def perform_tsne_and_plot(full_database, features, colors_100, target_dim=2, perplexity=30, n_iter=700):
     """Perform t-SNE dimensionality reduction and plot the result."""
-    tsne = TSNE(n_components=target_dim, random_state=42)
+    tsne = TSNE(n_components=target_dim, perplexity=perplexity, n_iter=n_iter, random_state=42)
     reduced_features = tsne.fit_transform(features)
     shape_names = full_database['file']
     shape_classes = full_database['category']
@@ -81,16 +134,12 @@ def perform_tsne_and_plot(full_database, features, colors_100, target_dim=2):
     
     plt.show()
 
+
 def main():
     normalized_database_path = "normalized_feature_database_final.csv"
     
     faiss_ann_index, full_database, normalized_features = build_faiss_ann_index(normalized_database_path)
-
     perform_tsne_and_plot(full_database, normalized_features, colors_100)
 
 if __name__ == "__main__":
-    query_file_path = r"normalised_v2_dataset/Car/D00168.obj"
-    query_features = process_single_query(query_file_path)
-    
-    # Find and print the closest entries
-    closest_entries = find_k_nearest_neighbors(query_features, "normalized_feature_database.csv", k=10)
+    main()
