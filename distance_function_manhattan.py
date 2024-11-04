@@ -59,42 +59,49 @@ def normalize_query(query_features):
         'histograms': histogram_features
     }
 
-query_features = process_single_query(r"C:\Users\Carlijn\multimedia-retrieval\normalised_v2_dataset\Spoon\D00683.obj")
+def find_closest_entries(normalized_query, numeric_spread):
 
-if query_features is None:
-    print("Error: The query file could not be processed. Please check the file path and ensure the file is compatible.")
-else:
+    normalized_database = full_database[non_histogram_columns]
+    common_columns = normalized_database.columns.intersection(normalized_query['numeric'].index)
+    normalized_query_num = (normalized_query['numeric'][common_columns] / numeric_spread) * single_value_weights
+
+    normalized_db_values = (normalized_database[common_columns] / numeric_spread) * single_value_weights
+    numeric_distances = np.abs(normalized_db_values - normalized_query_num).sum(axis=1)
+
+    emd_distances = []
+    for row_idx, row in full_database.iterrows():
+        emd_distance = sum(
+            (wasserstein_distance(normalized_query['histograms'][hist], parsed_histograms[hist][row_idx]) / histogram_spread[hist]) * histogram_weights[hist]
+            for hist in histogram_columns
+        )
+        emd_distances.append(emd_distance)
+
+    combined_distances = numeric_distances + np.array(emd_distances)
+
+    closest_indices = np.argsort(combined_distances)[:10]
+    closest_entries = full_database.iloc[closest_indices][['category', 'file']]
+    closest_entries = closest_entries.copy()
+    closest_entries['manhattan_distance'] = numeric_distances[closest_indices]
+    closest_entries['histogram_distance'] = np.array(emd_distances)[closest_indices]
+    closest_entries['combined_distance'] = combined_distances[closest_indices]
+
+    print("Top 10 closest entries based on combined Manhattan and EMD distance:")
+    print(closest_entries)
+    
+    return closest_entries
+# query_features = process_single_query(r"C:\Users\Carlijn\multimedia-retrieval\normalised_v2_dataset\Spoon\D00683.obj")
+
+# if query_features is None:
+#     print("Error: The query file could not be processed. Please check the file path and ensure the file is compatible.")
+# else:
+#     normalized_query = normalize_query(query_features)
+
+
+#     closest_entries = find_closest_entries(normalized_query, numeric_spread)
+
+
+def query_obj(file_path):
+    query_features = process_single_query(file_path)
     normalized_query = normalize_query(query_features)
-
-    def find_closest_entries(normalized_query, numeric_spread):
-
-        normalized_database = full_database[non_histogram_columns]
-        common_columns = normalized_database.columns.intersection(normalized_query['numeric'].index)
-        normalized_query_num = (normalized_query['numeric'][common_columns] / numeric_spread) * single_value_weights
-
-        normalized_db_values = (normalized_database[common_columns] / numeric_spread) * single_value_weights
-        numeric_distances = np.abs(normalized_db_values - normalized_query_num).sum(axis=1)
-
-        emd_distances = []
-        for row_idx, row in full_database.iterrows():
-            emd_distance = sum(
-                (wasserstein_distance(normalized_query['histograms'][hist], parsed_histograms[hist][row_idx]) / histogram_spread[hist]) * histogram_weights[hist]
-                for hist in histogram_columns
-            )
-            emd_distances.append(emd_distance)
-
-        combined_distances = numeric_distances + np.array(emd_distances)
-
-        closest_indices = np.argsort(combined_distances)[:10]
-        closest_entries = full_database.iloc[closest_indices][['category', 'file']]
-        closest_entries = closest_entries.copy()
-        closest_entries['manhattan_distance'] = numeric_distances[closest_indices]
-        closest_entries['histogram_distance'] = np.array(emd_distances)[closest_indices]
-        closest_entries['combined_distance'] = combined_distances[closest_indices]
-
-        print("Top 10 closest entries based on combined Manhattan and EMD distance:")
-        print(closest_entries)
-        
-        return closest_entries
-
     closest_entries = find_closest_entries(normalized_query, numeric_spread)
+    return closest_entries
