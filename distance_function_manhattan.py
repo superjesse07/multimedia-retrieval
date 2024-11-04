@@ -16,6 +16,10 @@ stats_df = pd.read_csv("normalization_stats.csv", index_col=0)
 mean = stats_df['mean']
 std = stats_df['std']
 
+query_file_path = r"normalised_v2_dataset/HumanHead/D00013.obj"
+query_features = process_single_query(query_file_path)
+print("query_features keys:", query_features)
+
 def parse_histogram(hist_string):
     if isinstance(hist_string, str):
         cleaned_string = ','.join(hist_string.split())
