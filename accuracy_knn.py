@@ -46,12 +46,18 @@ knn_model.fit(combined_features)
 def calculate_metrics(query_index, k=10):
     query_category = full_database.iloc[query_index]['category']
     query_vector = combined_features[query_index].reshape(1, -1)
-    
-    distances_ann, ann_indices = faiss_index.search(query_vector, k)
-    distances_knn, knn_indices = knn_model.kneighbors(query_vector, n_neighbors=k)
+    print(f"{query_index}")
+
+    distances_ann, ann_indices = faiss_index.search(query_vector, k + 1)
+    distances_knn, knn_indices = knn_model.kneighbors(query_vector, n_neighbors=k + 1)
+
+    distances_ann = np.delete(distances_ann,0)
+    ann_indices = np.delete(ann_indices,0)
+    distances_knn = np.delete(distances_knn,0)
+    knn_indices = np.delete(knn_indices,0)
 
     def calculate_scores(indices, distances):
-        relevance_labels = [1 if full_database.iloc[idx]['category'] == query_category else 0 for idx in indices[0]]
+        relevance_labels = full_database.iloc[indices]['category'] == query_category
         auc_score = roc_auc_score(relevance_labels, 1 / (distances.flatten() + 1e-10)) \
                     if len(set(relevance_labels)) > 1 else np.nan
         avg_precision = average_precision_score(relevance_labels, 1 / (distances.flatten() + 1e-10))

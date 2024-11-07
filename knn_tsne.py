@@ -101,36 +101,43 @@ def perform_tsne_and_plot(full_database, features, colors_100, target_dim=2, per
     
     unique_classes = shape_classes.unique()
     num_classes = len(unique_classes)
+
+    indices = [i for (i,x) in enumerate(shape_classes) if x in unique_classes]
+
     
     assert num_classes <= 100, "The number of categories exceeds the number of unique colors available."
     color_map = {cls: colors_100[i] for i, cls in enumerate(unique_classes)}
     
     color_values = shape_classes.map(color_map)
     
-    plt.figure(figsize=(10, 8))
-    scatter = plt.scatter(
-        reduced_features[:, 0], 
-        reduced_features[:, 1], 
-        c=color_values, 
+    plt.figure(figsize=(8, 8))
+    ax = plt.subplot(111)
+    scatter = ax.scatter(
+        reduced_features[indices, 0],
+        reduced_features[indices, 1],
+        c=color_values[indices],
         alpha=0.9
     )
+
+    box = ax.get_position()
+    ax.set_position([box.x0,box.y0,box.width*0.8,box.height])
     
     handles = [plt.Line2D([0], [0], marker='o', color=color_map[cls], markersize=8, linestyle='', label=cls) 
                for cls in unique_classes]
-    plt.legend(handles=handles, title="Shape Category", bbox_to_anchor=(1.05, 1), loc='upper left')
+    plt.legend(handles=handles, title="Shape Category", bbox_to_anchor=(1, 1), loc='upper left')
     
     plt.title("2D Scatter Plot of Shape Feature Vectors (t-SNE)")
     plt.xlabel("t-SNE Dimension 1")
     plt.ylabel("t-SNE Dimension 2")
 
-    cursor = mplcursors.cursor(hover=True)
-    
-    @cursor.connect("add")
-    def on_hover(event):
-        index = event.index
-        name = shape_names.iloc[index]
-        shape_class = shape_classes.iloc[index]
-        event.annotation.set_text(f"File: {name}\nCategory: {shape_class}")
+    # cursor = mplcursors.cursor(hover=True)
+    #
+    # @cursor.connect("add")
+    # def on_hover(event):
+    #     index = event.index
+    #     name = shape_names.iloc[index]
+    #     shape_class = shape_classes.iloc[index]
+        #event.annotation.set_text(f"File: {name}\nCategory: {shape_class}")
     
     plt.show()
 
