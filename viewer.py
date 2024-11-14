@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import QShortcut
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtCore import QObject, pyqtSignal
 from pyrr import Quaternion
-from util import load_program, get_barycenter
+from util import load_program
 
 
 def grid(size, steps):

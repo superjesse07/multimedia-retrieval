@@ -6,6 +6,7 @@ import pandas as pd
 from joblib import Parallel, delayed
 import multiprocessing
 import sys
+import vg
 
 # Suppress Open3D warnings 
 o3d.utility.set_verbosity_level(o3d.utility.VerbosityLevel.Error)
@@ -71,30 +72,20 @@ def compute_barycenter(vertices):
     return np.mean(vertices, axis=0)
 
 # Random vertex selection
-def random_vertex_indices(num_vertices, num_samples, points_per_sample=3):
+def random_vertex_indices(num_vertices, num_samples, points_per_sample=4):
     return np.random.randint(0, num_vertices, size=(num_samples, points_per_sample))
 
 # A3, D1, D2, D3, D4 descriptor calculations
 def compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices_all, random_indices_D1, triangle_centers):
-    A3_values, D1_values, D2_values, D3_values, D4_values = [], [], [], [], []
-    for indices in random_indices_all:
-        v0, v1, v2 = vertices[indices[0]], vertices[indices[1]], vertices[indices[2]]
-        vec1 = v1 - v0
-        vec2 = v2 - v0
-        norm_vec1 = np.linalg.norm(vec1)
-        norm_vec2 = np.linalg.norm(vec2)
-        cos_angle = np.dot(vec1, vec2) / (norm_vec1 * norm_vec2) if norm_vec1 > 0 and norm_vec2 > 0 else 0
-        A3_values.append(np.arccos(np.clip(cos_angle, -1.0, 1.0)))
-        D2_values.append(np.linalg.norm(v0 - v1))
-        D3_values.append(np.sqrt(0.5 * np.linalg.norm(np.cross(v1 - v0, v2 - v0))))
-        v3 = vertices[np.random.randint(0, len(vertices))]
-        volume = np.abs(np.dot(v3 - v0, np.cross(v1 - v0, v2 - v0))) / 6.0
-        D4_values.append(np.cbrt(volume))
-    for indices in random_indices_D1:
-        v0 = vertices[indices[0]]
-        D1_values.append(np.linalg.norm(barycenter - v0))
-    for center in triangle_centers:
-        D1_values.append(np.linalg.norm(barycenter - center))
+    v0 = vertices[random_indices_all[:,0]]
+    v1 = vertices[random_indices_all[:,1]]
+    v2 = vertices[random_indices_all[:,2]]
+    v3 = vertices[random_indices_all[:,3]]
+    D1_values = np.append(np.linalg.norm(vertices[random_indices_D1].squeeze(),axis=1),np.linalg.norm(triangle_centers,axis=1),axis=0)
+    A3_values = vg.angle(v0,v1,units="rad")
+    D2_values = np.linalg.norm(v0-v1,axis=1)
+    D3_values = np.sqrt(0.5 * np.linalg.norm(np.cross(v1-v0,v2-v0),axis=1))
+    D4_values = np.cbrt(np.abs(((v3 - v0) * np.cross(v1-v0, v2-v0)).sum(1)) / 6.0)
     return A3_values, D1_values, D2_values, D3_values, D4_values
 
 def compute_histogram(values, bins=10, range_min=0, range_max=1):
@@ -105,9 +96,9 @@ def extract_shape_descriptors(mesh, num_samples_all=100000, num_samples_D1=5000,
     vertices = np.asarray(mesh.vertices)
     barycenter = compute_barycenter(vertices)
     random_indices_all = random_vertex_indices(len(vertices), num_samples_all)
-    random_indices_D1 = random_vertex_indices(len(vertices), num_samples_D1)
-    triangle_centers = np.asarray(mesh.triangles).mean(axis=1)
-    triangle_center_indices = np.random.choice(len(triangle_centers), num_triangle_centers)
+    random_indices_D1 = random_vertex_indices(len(vertices), num_samples_D1,points_per_sample=1)
+    triangle_centers = vertices[np.asarray(mesh.triangles)].mean(axis=1)
+    triangle_center_indices = np.random.choice(len(np.asarray(mesh.triangles)), num_triangle_centers)
     
     A3_values, D1_values, D2_values, D3_values, D4_values = compute_A3_D1_D2_D3_D4(
         vertices, barycenter, random_indices_all, random_indices_D1, triangle_centers[triangle_center_indices]
@@ -130,8 +121,8 @@ def extract_features(category, file, mesh: o3d.geometry.TriangleMesh):
     convexity = volume / get_volume(convex_hull)
     diameter = get_diameter(mesh)
     eccentricity = get_eccentricity(mesh)
-    bins_all = 50  
-    bins_D1 = 20    
+    bins_all = 50
+    bins_D1 = 20
 
     A3_hist, D1_hist, D2_hist, D3_hist, D4_hist = extract_shape_descriptors(
         mesh, bins_all=bins_all, bins_D1=bins_D1
@@ -168,7 +159,7 @@ def process_file(category, file, file_path):
 
 def process_directory(base_dir):
     categories = os.listdir(base_dir)
-    results = Parallel(n_jobs=multiprocessing.cpu_count())(
+    results = Parallel(n_jobs=multiprocessing.cpu_count() / 2)(
         delayed(process_file)(category, file, os.path.join(base_dir, category, file))
         for category in categories if os.path.isdir(os.path.join(base_dir, category))
         for file in os.listdir(os.path.join(base_dir, category)) if file.endswith('.obj')
@@ -181,3 +172,5 @@ def process_directory(base_dir):
 
 base_dir = "normalised_v2_dataset"
 process_directory(base_dir)
+
+#print(process_file("Test","test","Iris-D00130.obj"))

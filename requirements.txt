@@ -2,6 +2,15 @@
 moderngl~=5.11.1
 pyrr~=0.10.3
 numpy~=2.0.2
-openmesh~=1.2.1
 pandas~=2.2.3
 open3d~=0.18.0
+matplotlib~=3.9.2
+scipy~=1.14.1
+scikit-learn~=1.5.2
+faiss-cpu~=1.9.0
+mplcursors~=0.6
+vedo~=2024.5.2
+seaborn~=0.13.2
+bpy~=4.2.0
+joblib~=1.4.2
+vg~=2.0.0
