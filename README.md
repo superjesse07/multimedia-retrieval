@@ -16,3 +16,7 @@ To process the dataset run the following files in order
 then run `feature_extraction.py`
 
 If you want to collect the mesh data into a csv file you need to install python 3.9 with openmesh and use it to run `parse_meshes.py`
+
+Run `knn_tsne.py` to see the tsne graph.
+
+Run `accuracy.py` or `accuracy_knn.py` to calculate the corresponding precision and auc.

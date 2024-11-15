@@ -42,16 +42,23 @@ class ModelViewerApplication(QtWidgets.QWidget):
         self.topBar.addWidget(self.queryButton)
         self.topBar.addWidget(self.wireframeButton)
         self.layout.addLayout(self.topBar)
-        self.layout.addWidget(self.openGL)
+        self.layout.addWidget(self.openGL,stretch=1)
 
         self.query_gl = []
         self.query_results = QtWidgets.QGridLayout()
+        self.query_results.setSpacing(0)
         for i in range(0,10):
+            vertical = QtWidgets.QVBoxLayout()
             gl = ModelViewerWidget()
             gl.setGeometry(0, 0, 800, 600)
-            self.query_results.addWidget(gl,int(i / 5),i % 5)
-            self.query_gl.append(gl)
-        self.layout.addLayout(self.query_results)
+            self.query_results.addLayout(vertical,int(i / 5),i % 5)
+            category = QtWidgets.QLabel("None")
+            distance = QtWidgets.QLabel("Distance: 0.0")
+            vertical.addWidget(category)
+            vertical.addWidget(distance)
+            vertical.addWidget(gl,stretch=1)
+            self.query_gl.append({"gl":gl,"distance":distance,"category":category})
+        self.layout.addLayout(self.query_results,stretch=1)
         timer = QtCore.QTimer(self)
         timer.setInterval(20)
         timer.timeout.connect(self.update_gl)
@@ -62,7 +69,7 @@ class ModelViewerApplication(QtWidgets.QWidget):
     def update_gl(self):
         self.openGL.updateGL()
         for x in self.query_gl:
-            x.updateGL()
+            x['gl'].updateGL()
 
     def clean_model(self):
         if self.openGL.mesh is None:
@@ -96,9 +103,12 @@ class ModelViewerApplication(QtWidgets.QWidget):
         progress.show()
         o3.io.write_triangle_mesh("temp.obj",self.openGL.mesh)
         results = distance_function_manhattan.query_obj("temp.obj")
-        for (i,gl) in enumerate(self.query_gl):
+        for (i,frame) in enumerate(self.query_gl):
             print(f'normalised_v2_dataset/{results.iloc[i]["category"]}/{results.iloc[i]["file"]}')
-            gl.set_mesh(o3.io.read_triangle_mesh(f'normalised_v2_dataset/{results.iloc[i]["category"]}/{results.iloc[i]["file"]}'))
+            frame['gl'].set_mesh(o3.io.read_triangle_mesh(f'normalised_v2_dataset/{results.iloc[i]["category"]}/{results.iloc[i]["file"]}'))
+            frame['category'].setText(results.iloc[i]["category"])
+            frame['distance'].setText(f"Distance: {results.iloc[i]['combined_distance']}")
+            print(results.iloc[i])
         progress.close()
 
     def open_file(self):
