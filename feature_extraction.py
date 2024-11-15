@@ -21,10 +21,14 @@ class SuppressOutput:
         sys.stdout = self._original_stdout
 
 # Volume 
-def get_volume(mesh: o3d.geometry.TriangleMesh):
+def get_volume(mesh: o3d.geometry.TriangleMesh,triangles=None):
     vertices = np.asarray(mesh.vertices)
     volume = 0
-    for (v0, v1, v2) in np.asarray(mesh.triangles):
+    if triangles == None:
+        triangles = np.asarray(mesh.triangles)
+    else:
+        triangles = np.asarray(mesh.triangles)[triangles]
+    for (v0, v1, v2) in triangles:
         v0 = vertices[v0]
         v1 = vertices[v1]
         v2 = vertices[v2]
@@ -41,13 +45,15 @@ def compute_total_volume(mesh: o3d.geometry.TriangleMesh):
     num_parts = labels.max() + 1 
 
     total_volume = sum(
-        abs(get_volume(mesh.select_by_index(np.where(labels == part_index)[0])))
+        abs(get_volume(mesh,np.where(labels == part_index)))
         for part_index in range(num_parts)
     )
     return total_volume 
 
 # Compactness 
 def get_compactness(area: float, volume: float):
+    if volume == 0:
+        return 0
     return (area ** 3) / (36 * math.pi * (volume ** 2))
 
 # Diameter (Vectorized)
@@ -81,6 +87,7 @@ def compute_A3_D1_D2_D3_D4(vertices, barycenter, random_indices_all, random_indi
     v1 = vertices[random_indices_all[:,1]]
     v2 = vertices[random_indices_all[:,2]]
     v3 = vertices[random_indices_all[:,3]]
+    
     D1_values = np.append(np.linalg.norm(vertices[random_indices_D1].squeeze(),axis=1),np.linalg.norm(triangle_centers,axis=1),axis=0)
     A3_values = vg.angle(v0,v1,units="rad")
     D2_values = np.linalg.norm(v0-v1,axis=1)
@@ -147,15 +154,15 @@ def extract_features(category, file, mesh: o3d.geometry.TriangleMesh):
     return features
 
 def process_file(category, file, file_path):
-    try:
+    # try:
         print(f"Processing file: {file_path}")
         
         with SuppressOutput():
             mesh = o3d.io.read_triangle_mesh(file_path)
             return extract_features(category, file, mesh)
-    except Exception as e:
-        print(f"Error processing {file_path}: {e}")
-        return None
+    # except Exception as e:
+    #     print(f"Error processing {file_path}: {e}")
+    #     return None
 
 def process_directory(base_dir):
     categories = os.listdir(base_dir)
@@ -173,4 +180,4 @@ def process_directory(base_dir):
 base_dir = "normalised_v2_dataset"
 process_directory(base_dir)
 
-#print(process_file("Test","test","Iris-D00130.obj"))
+#print(process_file("Test","test","normalised_v2_dataset/PlantWildNonTree\m963.obj"))

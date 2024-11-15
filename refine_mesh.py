@@ -112,7 +112,6 @@ def process_directory(input_dir, output_dir, output_csv):
                         })
 
 
-#refine_meshes("dataset\AircraftBuoyant\m1339.obj","test.obj")
 if __name__ == "__main__":
     input_dir = os.path.join(os.path.dirname(__file__), 'dataset')
     output_dir = os.path.join(os.path.dirname(__file__), 'refined_dataset')
