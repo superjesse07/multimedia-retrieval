@@ -6,7 +6,6 @@ from pathlib import Path
 
 def fill_holes(mesh: Mesh):
 	mesh = mesh.compute_normals().clean()
-	lines = [x.color("red") for x in mesh.boundaries(True,False,False).join_segments()]
 	holes = [x.triangulate() for x in mesh.boundaries(True,False,False).join_segments()]
 	mesh = merge(mesh,holes).clean().compute_normals()
 	return mesh

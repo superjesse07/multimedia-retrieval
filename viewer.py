@@ -11,7 +11,15 @@ from PyQt5.QtWidgets import QShortcut
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtCore import QObject, pyqtSignal
 from pyrr import Quaternion
-from util import load_program
+
+def load_program(file_path: Path, ctx: moderngl.Context):
+    with open(file_path.with_suffix(".vert"), "r") as f:
+        vertex_shader = f.read()
+    with open(file_path.with_suffix(".frag"), "r") as f:
+        fragment_shader = f.read()
+    return ctx.program(
+        vertex_shader, fragment_shader
+    )
 
 
 def grid(size, steps):

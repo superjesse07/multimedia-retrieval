@@ -2,7 +2,6 @@
 import bpy
 
 path = os.path.abspath(os.path.dirname(__file__))
-bpy.app.binary_path = f"{path}\blender"
 
 def process_obj_file(file_path, destination_path):
     bpy.ops.wm.read_factory_settings(use_empty=True)

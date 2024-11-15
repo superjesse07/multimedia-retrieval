@@ -16,10 +16,6 @@ stats_df = pd.read_csv("normalization_stats.csv", index_col=0)
 mean = stats_df['mean']
 std = stats_df['std']
 
-query_file_path = r"normalised_v2_dataset/HumanHead/D00013.obj"
-query_features = process_single_query(query_file_path)
-print("query_features keys:", query_features)
-
 def parse_histogram(hist_string):
     if isinstance(hist_string, str):
         cleaned_string = ','.join(hist_string.split())
@@ -89,16 +85,6 @@ def find_closest_entries(normalized_query, numeric_spread):
     print(closest_entries)
     
     return closest_entries
-# query_features = process_single_query(r"C:\Users\Carlijn\multimedia-retrieval\normalised_v2_dataset\Spoon\D00683.obj")
-
-# if query_features is None:
-#     print("Error: The query file could not be processed. Please check the file path and ensure the file is compatible.")
-# else:
-#     normalized_query = normalize_query(query_features)
-
-
-#     closest_entries = find_closest_entries(normalized_query, numeric_spread)
-
 
 def query_obj(file_path):
     query_features = process_single_query(file_path)
