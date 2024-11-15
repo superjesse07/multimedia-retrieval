@@ -119,7 +119,7 @@ def extract_shape_descriptors(mesh, num_samples_all=100000, num_samples_D1=5000,
 
     return A3_hist, D1_hist, D2_hist, D3_hist, D4_hist
 
-def extract_features(category, file, mesh: o3d.geometry.TriangleMesh):
+def extract_features(mesh: o3d.geometry.TriangleMesh, category = None, file = None):
     area = mesh.get_surface_area()
     volume = compute_total_volume(mesh)
     compactness = get_compactness(area, volume)
@@ -136,8 +136,6 @@ def extract_features(category, file, mesh: o3d.geometry.TriangleMesh):
     )
     
     features = {
-        "category": category,
-        "file": file,
         "area": area,
         "volume": volume,
         "compactness": compactness,
@@ -151,23 +149,27 @@ def extract_features(category, file, mesh: o3d.geometry.TriangleMesh):
         "D3": D3_hist,
         "D4": D4_hist,
     }
+    if category is not None:
+        features["category"] = category
+    if file is not None:
+        features["file"] = file
     return features
 
-def process_file(category, file, file_path):
-    # try:
-        print(f"Processing file: {file_path}")
-        
-        with SuppressOutput():
-            mesh = o3d.io.read_triangle_mesh(file_path)
-            return extract_features(category, file, mesh)
-    # except Exception as e:
-    #     print(f"Error processing {file_path}: {e}")
-    #     return None
+def process_single_query(file_path, category = None, file = None):
+    try:
+      print(f"Processing file: {file_path}")
+      
+      with SuppressOutput():
+          mesh = o3d.io.read_triangle_mesh(file_path)
+          return extract_features(mesh,category, file)
+    except Exception as e:
+        print(f"Error processing {file_path}: {e}")
+        return None
 
 def process_directory(base_dir):
     categories = os.listdir(base_dir)
     results = Parallel(n_jobs=multiprocessing.cpu_count() / 2)(
-        delayed(process_file)(category, file, os.path.join(base_dir, category, file))
+        delayed(process_single_query)(os.path.join(base_dir, category, file),category, file)
         for category in categories if os.path.isdir(os.path.join(base_dir, category))
         for file in os.listdir(os.path.join(base_dir, category)) if file.endswith('.obj')
     )
@@ -176,8 +178,6 @@ def process_directory(base_dir):
     output_df = pd.DataFrame(output_data)
     output_df.to_csv("feature_database_final.csv", index=False)
 
-
-base_dir = "normalised_v2_dataset"
-process_directory(base_dir)
-
-#print(process_file("Test","test","normalised_v2_dataset/PlantWildNonTree\m963.obj"))
+if __name__ == "__main__":
+    base_dir = "normalised_v2_dataset"
+    process_directory(base_dir)

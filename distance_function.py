@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from process_single_query import process_single_query
+from feature_extraction import process_single_query
 from scipy.stats import wasserstein_distance
 import ast
 import re

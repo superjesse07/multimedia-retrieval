@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from scipy.stats import wasserstein_distance
 import ast
-from process_single_query import process_single_query
+from feature_extraction import process_single_query
 
 normalized_database_path = "normalized_feature_database.csv"
 full_database = pd.read_csv(normalized_database_path)

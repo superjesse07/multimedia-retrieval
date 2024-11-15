@@ -9,7 +9,6 @@ from pathlib import Path
 import os
 from contextlib import contextmanager
 
-# from util import get_barycenter
 from viewer import ModelViewerWidget
 import csv
 import refine_mesh

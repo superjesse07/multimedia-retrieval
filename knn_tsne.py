@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import faiss
-from process_single_query import process_single_query
+from feature_extraction import process_single_query
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import mplcursors
