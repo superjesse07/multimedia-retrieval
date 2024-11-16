@@ -6,7 +6,7 @@ from feature_extraction import process_single_query
 from scipy.spatial.distance import cosine
 
 
-normalized_database_path = "normalized_feature_database.csv"
+normalized_database_path = "normalized_feature_database_final.csv"
 full_database = pd.read_csv(normalized_database_path)
 
 
@@ -15,7 +15,7 @@ full_histogram_columns = ['A3', 'D1', 'D2', 'D3', 'D4']
 feature_columns = full_database.select_dtypes(include=[np.number]).columns
 non_histogram_columns = feature_columns.difference(full_histogram_columns)
 
-stats_df = pd.read_csv("normalization_stats.csv", index_col=0)
+stats_df = pd.read_csv("normalization_stats_final.csv", index_col=0)
 mean = stats_df['mean']
 std = stats_df['std']
 
@@ -82,7 +82,7 @@ def find_closest_entries(normalized_query, numeric_spread):
     closest_entries = closest_entries.copy()
     closest_entries['cosine_distance'] = np.array(numeric_distances)[closest_indices]
     closest_entries['histogram_distance'] = np.array(emd_distances)[closest_indices]
-    closest_entries['combined_distance'] = combined_distances[closest_indices]
+    closest_entries['distance'] = combined_distances[closest_indices]
 
     print("Top 10 closest entries based on combined cosine and EMD distance:")
     print(closest_entries)

@@ -3,6 +3,8 @@ import numpy as np
 import faiss
 from sklearn.neighbors import NearestNeighbors
 from sklearn.metrics import roc_auc_score, average_precision_score
+from feature_extraction import process_single_query
+from distance_function import normalize_query
 
 file_path = 'normalized_feature_database_final.csv'
 full_database = pd.read_csv(file_path)
@@ -21,15 +23,6 @@ def parse_histogram_column(column_data):
 parsed_histograms = [parse_histogram_column(full_database[col]) for col in histogram_columns]
 
 max_length = max(len(hist) for column in parsed_histograms for hist in column if len(hist) > 0)
-padded_histograms = [
-    np.array([np.pad(hist, (0, max_length - len(hist)), constant_values=0) for hist in column], dtype='float32')
-    for column in parsed_histograms
-]
-
-histogram_features_combined = np.hstack(padded_histograms)
-combined_features = np.hstack((numeric_features, histogram_features_combined))
-
-dimension = combined_features.shape[1]
 
 numeric_weights = {
     'Area': 0.2348,
@@ -49,22 +42,25 @@ histogram_weights = {
     'D4': 0.2082,
 }
 
-weighted_numeric_features = numeric_features.copy()
-for i, col in enumerate(numeric_columns):
-    if col in numeric_weights:
-        weighted_numeric_features[:, i] *= numeric_weights[col]
+def get_features(numeric,histogram):
+    weighted_numeric_features = numeric.copy()
+    for i, col in enumerate(numeric_columns):
+        if col in numeric_weights:
+            weighted_numeric_features[:, i] *= numeric_weights[col]
 
-weighted_padded_histograms = []
-for col, column in zip(histogram_columns, parsed_histograms):
-    weight = histogram_weights[col]
-    weighted_histograms = np.array(
-        [np.pad(hist, (0, max_length - len(hist)), constant_values=0) * weight for hist in column],
-        dtype='float32'
-    )
-    weighted_padded_histograms.append(weighted_histograms)
+    weighted_padded_histograms = []
+    for col, column in zip(histogram_columns, histogram):
+        weight = histogram_weights[col]
+        weighted_histograms = np.array(
+            [np.pad(hist, (0, max_length - len(hist)), constant_values=0) * weight for hist in column],
+            dtype='float32'
+        )
+        weighted_padded_histograms.append(weighted_histograms)
 
-weighted_histogram_features_combined = np.hstack(weighted_padded_histograms)
-combined_features = np.hstack((weighted_numeric_features, weighted_histogram_features_combined))
+    weighted_histogram_features_combined = np.hstack(weighted_padded_histograms)
+    return np.hstack((weighted_numeric_features, weighted_histogram_features_combined))
+
+combined_features = get_features(numeric_features,parsed_histograms)
 
 dimension = combined_features.shape[1]
 
@@ -79,6 +75,21 @@ faiss_index = build_faiss_ann_index(combined_features, dimension)
 
 knn_model = NearestNeighbors(n_neighbors=10, metric='euclidean')
 knn_model.fit(combined_features)
+
+
+def get_top_knn(query_features, k=10):
+    normalized_query = normalize_query(query_features)
+    histograms = [query_features['A3'] * histogram_weights['A3'],query_features['D1'] * histogram_weights['D1'],query_features['D2'] * histogram_weights['D2'],query_features['D3'] * histogram_weights['D3'],query_features['D4'] * histogram_weights['D4']]
+    padded_histograms = [np.pad(hist, (0,max_length - len(hist)),constant_values=0) for hist in histograms]
+    for i, col in enumerate(numeric_columns):
+        if col in numeric_weights:
+            normalize_query['numeric'][:, i] *= numeric_weights[col]
+    query_vector = np.hstack((normalized_query['numeric'].values,np.hstack(padded_histograms))).reshape(1,-1)
+    distances_knn, knn_indices = knn_model.kneighbors(query_vector, n_neighbors=k)
+    closest_entries = full_database.iloc[knn_indices.flatten()][['category', 'file']]
+    closest_entries['distance'] = distances_knn.flatten()
+    return closest_entries
+
 
 def calculate_metrics(query_index, k=10):
     query_category = full_database.iloc[query_index]['category']
@@ -114,17 +125,22 @@ def calculate_metrics(query_index, k=10):
         'category': query_category
     }
 
-results = []
-for i in range(len(full_database)):
-    metrics = calculate_metrics(i, k=10)
-    results.append(metrics)
+def query_knn(file_path):
+    query_features = process_single_query(file_path)
+    return get_top_knn(query_features)
 
-results_df = pd.DataFrame(results)
-overall_metrics = results_df[['ann_auc', 'ann_precision_at_k']].mean()
-category_metrics = results_df.groupby('category')[['ann_auc', 'ann_precision_at_k']].mean()
+if __name__ == "__main__":
+    results = []
+    for i in range(len(full_database)):
+        metrics = calculate_metrics(i, k=10)
+        results.append(metrics)
 
-overall_metrics.to_csv('overall_metrics.csv')
-category_metrics.to_csv('category_metrics.csv')
+    results_df = pd.DataFrame(results)
+    overall_metrics = results_df[['ann_auc', 'ann_precision_at_k']].mean()
+    category_metrics = results_df.groupby('category')[['ann_auc', 'ann_precision_at_k']].mean()
 
-print("Overall metrics saved to 'overall_metrics.csv'")
-print("Category-wise metrics saved to 'category_metrics.csv'")
+    overall_metrics.to_csv('overall_metrics.csv')
+    category_metrics.to_csv('category_metrics.csv')
+
+    print("Overall metrics saved to 'overall_metrics.csv'")
+    print("Category-wise metrics saved to 'category_metrics.csv'")

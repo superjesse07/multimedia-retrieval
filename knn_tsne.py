@@ -1,7 +1,6 @@
 import pandas as pd
 import numpy as np
 import faiss
-from feature_extraction import process_single_query
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
 import mplcursors
@@ -149,9 +148,4 @@ def main():
     perform_tsne_and_plot(full_database, normalized_features, colors_100)
 
 if __name__ == "__main__":
-    query_file_path = r"normalised_v2_dataset/Car/D00168.obj"
-    query_features = process_single_query(query_file_path)
-    #main()
-    # Find and print the closest entries
-    closest_entries = find_k_nearest_neighbors(query_features, "normalized_feature_database.csv", k=10)
-    #main()
+    main()

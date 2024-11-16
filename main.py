@@ -15,8 +15,9 @@ import refine_mesh
 import Normalisation
 import normalisation_v2
 import fill_holes
-#import normals_check
+import normals_check
 import distance_function
+from accuracy_knn import query_knn
 
 
 class ModelViewerApplication(QtWidgets.QWidget):
@@ -32,6 +33,8 @@ class ModelViewerApplication(QtWidgets.QWidget):
         self.cleanButton.clicked.connect(self.clean_model)
         self.queryButton = QtWidgets.QPushButton("Query model")
         self.queryButton.clicked.connect(self.query_model)
+        self.queryKNNButton = QtWidgets.QPushButton("Query KNN model")
+        self.queryKNNButton.clicked.connect(lambda: self.query_model(True))
         self.wireframeButton = QtWidgets.QPushButton("Toggle wireframe")
         self.wireframeButton.clicked.connect(self.openGL.toggle_wireframe)
 
@@ -40,6 +43,7 @@ class ModelViewerApplication(QtWidgets.QWidget):
         self.topBar.addWidget(self.loadButton)
         self.topBar.addWidget(self.cleanButton)
         self.topBar.addWidget(self.queryButton)
+        self.topBar.addWidget(self.queryKNNButton)
         self.topBar.addWidget(self.wireframeButton)
         self.layout.addLayout(self.topBar)
         self.layout.addWidget(self.openGL,stretch=1)
@@ -85,7 +89,7 @@ class ModelViewerApplication(QtWidgets.QWidget):
         fill_holes.process_obj_file("temp.obj","temp.obj")
         progress.setValue(2)
         progress.setLabelText("Flipping Normals...")
-        #normals_check.process_obj_file("temp.obj","temp.obj")
+        normals_check.process_obj_file("temp.obj","temp.obj")
         progress.setValue(3)
         progress.setLabelText("Normalizing Mesh...")
         Normalisation.process_obj_file("temp.obj","temp.obj")
@@ -95,19 +99,22 @@ class ModelViewerApplication(QtWidgets.QWidget):
         progress.close()
         self.openGL.set_mesh(o3.io.read_triangle_mesh("temp.obj"))
 
-    def query_model(self):
+    def query_model(self,knn=False):
         if self.openGL.mesh is None:
             return
         progress = QtWidgets.QProgressDialog("Querying Mesh...", "",0,1,self)
         progress.setWindowTitle("Querying Mesh...")
         progress.show()
         o3.io.write_triangle_mesh("temp.obj",self.openGL.mesh)
-        results = distance_function.query_obj("temp.obj")
+        if knn:
+            results = query_knn("temp.obj")
+        else:
+            results = distance_function.query_obj("temp.obj")
         for (i,frame) in enumerate(self.query_gl):
             print(f'normalised_v2_dataset/{results.iloc[i]["category"]}/{results.iloc[i]["file"]}')
             frame['gl'].set_mesh(o3.io.read_triangle_mesh(f'normalised_v2_dataset/{results.iloc[i]["category"]}/{results.iloc[i]["file"]}'))
             frame['category'].setText(results.iloc[i]["category"])
-            frame['distance'].setText(f"Distance: {results.iloc[i]['combined_distance']}")
+            frame['distance'].setText(f"Distance: {results.iloc[i]['distance']}")
             print(results.iloc[i])
         progress.close()
 
