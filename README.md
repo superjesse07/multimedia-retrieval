@@ -5,6 +5,8 @@ To install all the required modules run `pip install -r requirements.txt` in the
 
 To run the query interface program run `python main.py`
 
+The following processing is unnecessary as all the processed files are already in `normalised_v2_dataset` and `feature_database.csv`
+
 To process the dataset run the following files in order
 
 - `refine_mesh.py`
@@ -15,7 +17,7 @@ To process the dataset run the following files in order
 
 then run `feature_extraction.py`
 
-If you want to collect the mesh data into a csv file you need to install python 3.9 with openmesh and use it to run `parse_meshes.py`
+If you want to collect the mesh data into a csv file you need to install python 3.9 with openmesh and use it to run `parse_meshes.py`. The result of this is in `dataset.csv`
 
 Run `knn_tsne.py` to see the tsne graph.
 
