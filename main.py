@@ -15,7 +15,7 @@ import refine_mesh
 import Normalisation
 import normalisation_v2
 import fill_holes
-import normals_check
+#import normals_check
 import distance_function_manhattan
 
 
@@ -85,7 +85,7 @@ class ModelViewerApplication(QtWidgets.QWidget):
         fill_holes.process_obj_file("temp.obj","temp.obj")
         progress.setValue(2)
         progress.setLabelText("Flipping Normals...")
-        normals_check.process_obj_file("temp.obj","temp.obj")
+        #normals_check.process_obj_file("temp.obj","temp.obj")
         progress.setValue(3)
         progress.setLabelText("Normalizing Mesh...")
         Normalisation.process_obj_file("temp.obj","temp.obj")
