@@ -16,7 +16,7 @@ import Normalisation
 import normalisation_v2
 import fill_holes
 #import normals_check
-import distance_function_manhattan
+import distance_function
 
 
 class ModelViewerApplication(QtWidgets.QWidget):
@@ -102,7 +102,7 @@ class ModelViewerApplication(QtWidgets.QWidget):
         progress.setWindowTitle("Querying Mesh...")
         progress.show()
         o3.io.write_triangle_mesh("temp.obj",self.openGL.mesh)
-        results = distance_function_manhattan.query_obj("temp.obj")
+        results = distance_function.query_obj("temp.obj")
         for (i,frame) in enumerate(self.query_gl):
             print(f'normalised_v2_dataset/{results.iloc[i]["category"]}/{results.iloc[i]["file"]}')
             frame['gl'].set_mesh(o3.io.read_triangle_mesh(f'normalised_v2_dataset/{results.iloc[i]["category"]}/{results.iloc[i]["file"]}'))
